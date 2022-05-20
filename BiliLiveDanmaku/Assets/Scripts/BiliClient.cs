@@ -8,24 +8,12 @@ using LitJson;
 
 public class BiliLiveClient
 {
-    static readonly string ROOM_INIT_URL = "https://api.live.bilibili.com/xlive/web-room/v1/index/getInfoByRoom";
-    static readonly string DANMAKU_SERVER_CONF_URL = "https://api.live.bilibili.com/xlive/web-room/v1/index/getDanmuInfo";
-
     int _roomId;
-
-    int _realRoomId;
-    int _shortRoomId;
-    string _roomTitle;
-    int _roomOwnerUid;
-
-
-    string _hostListHost;
-    int _hostListPort;
-    int _hostListWsPort;
-
-    string _token;
+    BiliLiveRoomInfo _roomInfo;
+    BiliLiveHostInfo _hostInfo;
 
     bool _isRunning;
+    WebSocket _websocket = new WebSocket();
 
     public BiliLiveClient(int roomId)
     {
@@ -60,7 +48,7 @@ public class BiliLiveClient
     {
         try
         {
-            var jsonStr = HttpTool.Get(ROOM_INIT_URL, new Dictionary<string, string> { ["room_id"] = _roomId.ToString() });
+            var jsonStr = HttpTool.Get(BiliLiveDefine.ROOM_INIT_URL, new Dictionary<string, string> { ["room_id"] = _roomId.ToString() });
             var jsonData = JsonMapper.ToObject(jsonStr);
 
             var codeStr = jsonData["code"].ToString();
@@ -68,12 +56,12 @@ public class BiliLiveClient
             {
                 var room_info = jsonData["data"]["room_info"];
 
-                _realRoomId = int.Parse(room_info["room_id"].ToString());
-                _shortRoomId = int.Parse(room_info["short_id"].ToString());
-                _roomTitle = room_info["title"].ToString();
-                _roomOwnerUid = int.Parse(room_info["uid"].ToString());
+                _roomInfo.realRoomId = int.Parse(room_info["room_id"].ToString());
+                _roomInfo.shortRoomId = int.Parse(room_info["short_id"].ToString());
+                _roomInfo.roomTitle = room_info["title"].ToString();
+                _roomInfo.roomOwnerUid = int.Parse(room_info["uid"].ToString());
 
-                Debug.LogFormat("room={0},title={1},uid={2}", _realRoomId, _roomTitle, _roomOwnerUid);
+                Debug.LogFormat("room={0},title={1},uid={2}", _roomInfo.realRoomId, _roomInfo.roomTitle, _roomInfo.roomOwnerUid);
             }
         }
         catch(Exception)
@@ -87,24 +75,31 @@ public class BiliLiveClient
     {
         try
         {
-            var jsonStr = HttpTool.Get(DANMAKU_SERVER_CONF_URL, new Dictionary<string, string> { ["id"] = _roomId.ToString(),["type"] = "0" });
+            var jsonStr = HttpTool.Get(BiliLiveDefine.DANMAKU_SERVER_CONF_URL, new Dictionary<string, string> { ["id"] = _roomId.ToString(),["type"] = "0" });
             var jsonData = JsonMapper.ToObject(jsonStr);
 
             var codeStr = jsonData["code"].ToString();
             if (codeStr == "0")
             {
                 var data = jsonData["data"];
-                _token = data["token"].ToString();
+                _hostInfo.token = data["token"].ToString();
 
-                var host_list = data["host_list"];  //XXX:多个host,理论上应该逐个尝试
-                var host_list_one = host_list[1];
+                var host_list = data["host_list"];
+                _hostInfo.hostList = new BiliLiveHostInfoHostData[host_list.Count];
 
-                _hostListHost = host_list_one["host"].ToString();
-                _hostListPort = int.Parse(host_list_one["port"].ToString());
-                _hostListWsPort = int.Parse(host_list_one["ws_port"].ToString());
+                for(int i = 0;i < host_list.Count;i++)
+                {
+                    var host_data = host_list[i];
+                    var hostData = new BiliLiveHostInfoHostData();
+                    hostData.host = host_data["host"].ToString();
+                    hostData.port = int.Parse(host_data["port"].ToString());
+                    hostData.wsPort = int.Parse(host_data["ws_port"].ToString());
+                    hostData.wssPort = int.Parse(host_data["wss_port"].ToString());
 
-                Debug.LogFormat("host={0},port={1},ws_port={2}", _hostListHost, _hostListPort, _hostListWsPort);
-                Debug.LogFormat("token={0}", _token);
+                    _hostInfo.hostList[i] = hostData;
+                }
+
+                Debug.LogFormat("token={0}", _hostInfo.token);
             }
         }
         catch (Exception)
@@ -115,12 +110,19 @@ public class BiliLiveClient
 
     private void ConnectRoom()
     {
-        //TODO:建立WebSocket链接
+        //建立WebSocket链接,这里应该对每个进行尝试
+        int retryCount = 0;
+        foreach(var hostData in _hostInfo.hostList)
+        {
+            string url = string.Format("wss://{0}:{1}/sub", hostData.host, hostData.wssPort);
+            _websocket.Connect(url);
+            break;
+        }
     }
 
     private void DisconnectRoom()
     {
-            
+        _websocket.Disconnect();
     }
 
     //心跳包

@@ -9,6 +9,13 @@ public class ClientTest : MonoBehaviour
     {
         var client = new BiliLiveClient(22625025);
         client.Start();
+
+        //var client = new WebSocket();
+        //client.onOpen = () =>
+        //{
+        //    client.Send("Hellow");
+        //};
+        //client.Connect("ws://localhost:8080/");
     }
 
     // Update is called once per frame
@@ -16,4 +23,6 @@ public class ClientTest : MonoBehaviour
     {
         
     }
+
+    
 }
