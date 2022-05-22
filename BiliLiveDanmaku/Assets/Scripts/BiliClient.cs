@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using UnityEngine;
 using System;
 using LitJson;
+using System.Text;
 
 public class BiliLiveClient
 {
@@ -14,7 +15,7 @@ public class BiliLiveClient
 
     bool _isRunning;
     WebSocket _websocket = new WebSocket();
-
+    IntervalTimer _heartbeatTimer = new IntervalTimer(30 * 1000);
     public BiliLiveClient(int roomId)
     {
         _roomId = roomId;
@@ -25,30 +26,30 @@ public class BiliLiveClient
         return _isRunning;
     }
 
-    public void Start()
+    public async void Start()
     {
         if (_isRunning) return;
         _isRunning = true;
 
-        InitRoomInfo();
-        InitHostServer();
+        await InitRoomInfo();
+        await InitHostServer();
 
-        ConnectRoom();
+        await ConnectRoom();
     }
 
-    public void Close()
+    public async void Close()
     {
-        DisconnectRoom();
+        await DisconnectRoom();
         _isRunning = false;
     }
 
     ////////////////////////
 
-    private void InitRoomInfo()
+    private async Task InitRoomInfo()
     {
         try
         {
-            var jsonStr = HttpTool.Get(BiliLiveDefine.ROOM_INIT_URL, new Dictionary<string, string> { ["room_id"] = _roomId.ToString() });
+            var jsonStr = await HttpRequest.GetAsync(BiliLiveDefine.ROOM_INIT_URL, new Dictionary<string, string> { ["room_id"] = _roomId.ToString() });
             var jsonData = JsonMapper.ToObject(jsonStr);
 
             var codeStr = jsonData["code"].ToString();
@@ -71,11 +72,11 @@ public class BiliLiveClient
 
     }
 
-    private void InitHostServer()
+    private async Task InitHostServer()
     {
         try
         {
-            var jsonStr = HttpTool.Get(BiliLiveDefine.DANMAKU_SERVER_CONF_URL, new Dictionary<string, string> { ["id"] = _roomId.ToString(),["type"] = "0" });
+            var jsonStr = await HttpRequest.GetAsync(BiliLiveDefine.DANMAKU_SERVER_CONF_URL, new Dictionary<string, string> { ["id"] = _roomId.ToString(),["type"] = "0" });
             var jsonData = JsonMapper.ToObject(jsonStr);
 
             var codeStr = jsonData["code"].ToString();
@@ -108,26 +109,71 @@ public class BiliLiveClient
         }
     }
 
-    private void ConnectRoom()
+    private async Task ConnectRoom()
     {
         //建立WebSocket链接,这里应该对每个进行尝试
-        int retryCount = 0;
         foreach(var hostData in _hostInfo.hostList)
         {
-            string url = string.Format("wss://{0}:{1}/sub", hostData.host, hostData.wssPort);
-            _websocket.Connect(url);
+            await ConnectWebscoket("wss", hostData.host, hostData.wssPort);
+            await SendAuthPacket();
+            KeepConnect();
+
             break;
         }
     }
 
-    private void DisconnectRoom()
+    private async Task DisconnectRoom()
     {
-        _websocket.Disconnect();
+        await _websocket.Disconnect();
     }
 
-    //心跳包
-    private void MakePacket()
+    private void KeepConnect()
     {
-
+        _heartbeatTimer.Event(()=>
+        {
+            SendTiktokPacket();
+        });
+        //_tiktokTimer.Start();
     }
+
+    private async Task ConnectWebscoket(string proto,string host,int port)
+    {
+        string url = string.Format("{0}://{1}:{2}/sub", proto, host, port);
+        await _websocket.Connect(url);
+    }
+
+    //发送认证包
+    private async Task SendAuthPacket()
+    {
+        var authArgs = new Dictionary<string, object>();
+        authArgs["uid"] = _roomInfo.roomOwnerUid;
+        authArgs["roomid"] = _roomInfo.realRoomId;
+        authArgs["protover"] = 3;
+        authArgs["platform"] = "web";
+        authArgs["type"] = 2;
+        authArgs["key"] = _hostInfo.token;
+
+        var data = MakePacket(authArgs);
+        await _websocket.Send(data);
+    }
+
+    //心跳包,空的用来维持链接
+    private async Task SendHeartbeatPacket()
+    {
+        var emptyArgs = new Dictionary<string, object>();
+
+        var data = MakePacket(emptyArgs);
+        await _websocket.Send(data);
+    }
+
+
+    //创建一个信息包二进制数据
+    private byte[] MakePacket(Dictionary<string, object> args)
+    {
+        //TODO:缺少头部数据
+        var jsonStr = JsonMapper.ToJson(args);
+        var data = Encoding.UTF8.GetBytes(jsonStr);
+        return data;
+    }
+
 }

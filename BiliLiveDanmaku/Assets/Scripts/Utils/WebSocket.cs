@@ -1,7 +1,9 @@
 using System;
+using System.Collections.Generic;
 using System.Net.WebSockets;
 using System.Text;
 using System.Threading;
+using System.Threading.Tasks;
 using UnityEngine;
 
 public class WebSocket
@@ -14,22 +16,12 @@ public class WebSocket
     public Action onClose;
     public Action<string> onMessage;
 
-    public async void Connect(string addr)
+    public async Task Connect(string addr)
     {
-        try
-        {
-            Disconnect();
-            _ws = new ClientWebSocket();
-            Uri url = new Uri(addr);
-            await _ws.ConnectAsync(url, _ct);
-            OnOpen();
+        await Disconnect();
+        await CreateConnect(addr);
 
-            LoopReceive();
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine(ex.Message);
-        }
+        LoopReceive();
     }
 
     public async void Send(string msg)
@@ -37,12 +29,12 @@ public class WebSocket
         await _ws.SendAsync(new ArraySegment<byte>(Encoding.UTF8.GetBytes(msg)), WebSocketMessageType.Text, true, _ct); //发送数据
     }
 
-    public async void Send(byte[] data)
+    public async Task Send(byte[] data)
     {
         await _ws.SendAsync(new ArraySegment<byte>(data), WebSocketMessageType.Binary, true, _ct); //发送数据
     }
 
-    public async void Disconnect()
+    public async Task Disconnect()
     {
         if (_ws != null)
         {
@@ -50,6 +42,14 @@ public class WebSocket
             OnClose();
             _ws = null;
         }
+    }
+
+    private async Task CreateConnect(string addr)
+    {
+        _ws = new ClientWebSocket();
+        Uri url = new Uri(addr);
+        await _ws.ConnectAsync(url, _ct);
+        OnOpen();
     }
 
     private async void LoopReceive()
