@@ -15,10 +15,12 @@ public class BiliLiveClient
 
     bool _isRunning;
     WebSocket _websocket = new WebSocket();
-    IntervalTimer _heartbeatTimer = new IntervalTimer(30 * 1000);
+    IntervalTimer _heartbeatTimer = new IntervalTimer(BiliLiveDefine.HEART_BEAT_PACKET_SEND_INTERVAL);
     public BiliLiveClient(int roomId)
     {
         _roomId = roomId;
+        _heartbeatTimer.onEvent = OnTimerEvent;
+        _websocket.onMessage = OnWebsocketMessage;
     }
 
     public bool IsRunning()
@@ -39,6 +41,7 @@ public class BiliLiveClient
 
     public async void Close()
     {
+        StopKeepConnect();
         await DisconnectRoom();
         _isRunning = false;
     }
@@ -114,12 +117,17 @@ public class BiliLiveClient
         //建立WebSocket链接,这里应该对每个进行尝试
         foreach(var hostData in _hostInfo.hostList)
         {
-            await ConnectWebscoket("wss", hostData.host, hostData.wssPort);
+            await ConnectWebscoket("ws", hostData.host, hostData.wsPort);
             await SendAuthPacket();
             KeepConnect();
 
             break;
         }
+    }
+
+    private void StopKeepConnect()
+    {
+        _heartbeatTimer.Stop();
     }
 
     private async Task DisconnectRoom()
@@ -129,11 +137,8 @@ public class BiliLiveClient
 
     private void KeepConnect()
     {
-        _heartbeatTimer.Event(()=>
-        {
-            SendTiktokPacket();
-        });
-        //_tiktokTimer.Start();
+
+        _heartbeatTimer.Start();
     }
 
     private async Task ConnectWebscoket(string proto,string host,int port)
@@ -146,14 +151,16 @@ public class BiliLiveClient
     private async Task SendAuthPacket()
     {
         var authArgs = new Dictionary<string, object>();
-        authArgs["uid"] = _roomInfo.roomOwnerUid;
+        //XXX:应该不是房主自己,这里传太多参数会导致链接失败
+
+        //authArgs["uid"] = 0;//_roomInfo.roomOwnerUid;   
         authArgs["roomid"] = _roomInfo.realRoomId;
-        authArgs["protover"] = 3;
-        authArgs["platform"] = "web";
-        authArgs["type"] = 2;
+        //authArgs["protover"] = 3;
+        //authArgs["platform"] = "web";
+        //authArgs["type"] = 2;
         authArgs["key"] = _hostInfo.token;
 
-        var data = MakePacket(authArgs);
+        var data = MakePackData(authArgs, (uint)BiliLiveCode.WS_OP_USER_AUTHENTICATION);
         await _websocket.Send(data);
     }
 
@@ -162,18 +169,90 @@ public class BiliLiveClient
     {
         var emptyArgs = new Dictionary<string, object>();
 
-        var data = MakePacket(emptyArgs);
+        var data = MakePackData(emptyArgs, (uint)BiliLiveCode.WS_OP_HEARTBEAT);
         await _websocket.Send(data);
     }
 
-
-    //创建一个信息包二进制数据
-    private byte[] MakePacket(Dictionary<string, object> args)
+    private byte[] MakePackData(Dictionary<string, object> args, uint operation)
     {
-        //TODO:缺少头部数据
         var jsonStr = JsonMapper.ToJson(args);
-        var data = Encoding.UTF8.GetBytes(jsonStr);
-        return data;
+        var body = Encoding.UTF8.GetBytes(jsonStr);
+
+        return PackageData(body, operation);
     }
 
+    //封装一个数据包
+    private byte[] PackageData(byte[] body, uint operation)
+    {
+        var blHeader = new BiliLiveHeader();
+        blHeader.raw_header_size = (ushort)System.Runtime.InteropServices.Marshal.SizeOf(blHeader);
+        blHeader.pack_len = (uint)(blHeader.raw_header_size + body.Length);
+        blHeader.ver = 1;
+        blHeader.operation = operation;
+        blHeader.seq_id = 1;
+
+        var header = ByteHelper.StructureToByteArrayEndian(blHeader);
+
+        return ByteHelper.CombineBytes(header,body);
+    }
+
+    //解析一个数据包
+    private void UnpackageData(byte[] data, out BiliLiveHeader outHader, out byte[] outBody)
+    {
+        var header = new byte[16];
+        var body = new byte[2048];
+
+        ByteHelper.SpliteBytes(data, header, body);
+
+        object blHeader = new BiliLiveHeader();
+        ByteHelper.ByteArrayToStructureEndian(header, ref blHeader, 0);
+
+        outHader = (BiliLiveHeader)blHeader;
+        outBody = body;
+    }
+
+    //
+    private async void OnTimerEvent()
+    {
+        await SendHeartbeatPacket();
+    }
+
+    private void OnWebsocketMessage(byte[] data)
+    {
+        UnpackageData(data, out var blHeader, out var outBody);
+
+        //TODO:粘包问题,如果body的长度不合理,需要根据header头部的len拼接数据
+        var str = Encoding.UTF8.GetString(outBody, 0, outBody.Length);
+        if (blHeader.operation == (uint)BiliLiveCode.WS_OP_HEARTBEAT_REPLY)
+        {
+            //好像什么都没返回
+        }
+        else if (blHeader.operation == (uint)BiliLiveCode.WS_OP_MESSAGE)
+        {
+            if (blHeader.ver == (uint)BiliLiveCode.WS_BODY_PROTOCOL_VERSION_NORMAL) //JSON明文
+            {
+
+            }
+            else if(blHeader.ver == (uint)BiliLiveCode.WS_BODY_PROTOCOL_VERSION_DEFLATE)
+            {
+                //TODO:需要剥离头部信息
+                var newBody = ZipUtility.Decompress_Deflate(outBody);
+                var msg = Encoding.UTF8.GetString(newBody, 0, newBody.Length);
+
+                //TODO:Json数据
+                Debug.Log(msg);
+
+                //TODO:判断BiliLiveDanmakuCmd类型
+            }
+        }
+        else if (blHeader.operation == (uint)BiliLiveCode.WS_OP_CONNECT_SUCCESS)
+        {
+            //JSON数据
+            //{"code":0}
+        }
+
+        Debug.LogFormat("{0},{1}",blHeader.operation, blHeader.ver);
+        Debug.Log(str);
+
+    }
 }

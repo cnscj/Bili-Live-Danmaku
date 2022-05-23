@@ -14,7 +14,7 @@ public class WebSocket
 
     public Action onOpen;
     public Action onClose;
-    public Action<string> onMessage;
+    public Action<byte[]> onMessage;
 
     public async Task Connect(string addr)
     {
@@ -38,7 +38,7 @@ public class WebSocket
     {
         if (_ws != null)
         {
-            await _ws.CloseAsync(WebSocketCloseStatus.NormalClosure, "Close", _ct);
+            await _ws.CloseAsync(WebSocketCloseStatus.NormalClosure, "Disconnect", _ct);
             OnClose();
             _ws = null;
         }
@@ -56,10 +56,10 @@ public class WebSocket
     {
         while (_isConnected)
         {
-            var result = new byte[1024];
+            var result = new byte[2048];
             await _ws.ReceiveAsync(new ArraySegment<byte>(result), new CancellationToken());//接受数据
-            var str = Encoding.UTF8.GetString(result, 0, result.Length);
-            OnMessage(str);
+
+            OnMessage(result);
         }
     }
 
@@ -75,9 +75,8 @@ public class WebSocket
         _isConnected = false;
         onClose?.Invoke();
     }
-    protected void OnMessage(string message)
+    protected void OnMessage(byte[] data)
     {
-        Debug.Log(message);
-        onMessage?.Invoke(message);
+        onMessage?.Invoke(data);
     }
 }

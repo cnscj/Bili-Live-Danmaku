@@ -7,12 +7,13 @@ public class IntervalTimer
     Timer _timer;
     int _period;
     int _count;
-    Action _onEvent;
+
+    public Action onEvent;
 
     public IntervalTimer(int interval,int period = 0)
     {
         _timer = new Timer(interval);
-        _timer.Elapsed += new ElapsedEventHandler(OnEvent);  //µ½´ïÊ±¼äµÄÊ±ºòÖ´ÐÐÊÂ¼þ;
+        _timer.Elapsed += new ElapsedEventHandler(OnEvent);  //åˆ°è¾¾æ—¶é—´çš„æ—¶å€™æ‰§è¡Œäº‹ä»¶;
 
         _period = period;
 
@@ -28,15 +29,11 @@ public class IntervalTimer
         _timer?.Stop();
     }
 
-    public void Event(Action call)
-    {
-        _onEvent = call;
-    }
-
+    
     private void OnEvent(object source, ElapsedEventArgs e)
     {
         _count++;
-        _onEvent?.Invoke();
+        onEvent?.Invoke();
 
         if (_period > 0 && _count >= _period)
             Stop();

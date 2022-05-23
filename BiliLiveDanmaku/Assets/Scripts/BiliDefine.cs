@@ -1,50 +1,51 @@
 
+using System.Runtime.InteropServices;
+
 public class BiliLiveDefine
 {
 
     public static readonly string ROOM_INIT_URL = "https://api.live.bilibili.com/xlive/web-room/v1/index/getInfoByRoom";
     public static readonly string DANMAKU_SERVER_CONF_URL = "https://api.live.bilibili.com/xlive/web-room/v1/index/getDanmuInfo";
 
-    public static readonly int HEART_BEAT_PACKET_SEND_INTERVAL = 30 * 1000;    //ĞÄÌø°ü·¢ËÍ¼ä¸ô
+    public static readonly int HEART_BEAT_PACKET_SEND_INTERVAL = 30 * 1000;    //å¿ƒè·³åŒ…å‘é€é—´éš”
 }
 
-public enum WSMessage
+public enum BiliLiveCode
 {
-    WS_OP_HEARTBEAT = 2, //ĞÄÌø
-    WS_OP_HEARTBEAT_REPLY = 3, //ĞÄÌø»ØÓ¦ 
-    WS_OP_MESSAGE = 5, //µ¯Ä»,ÏûÏ¢µÈ
-    WS_OP_USER_AUTHENTICATION = 7,//ÓÃ»§½øÈë·¿¼ä
-    WS_OP_CONNECT_SUCCESS = 8, //½ø·¿»ØÓ¦
-    WS_PACKAGE_HEADER_TOTAL_LENGTH = 16,//Í·²¿×Ö½Ú´óĞ¡
+    WS_OP_HEARTBEAT = 2, //å¿ƒè·³
+    WS_OP_HEARTBEAT_REPLY = 3, //å¿ƒè·³å›åº” 
+    WS_OP_MESSAGE = 5, //å¼¹å¹•,æ¶ˆæ¯å¹¿æ’­ç­‰å…¨éƒ¨ä¿¡æ¯
+    WS_OP_USER_AUTHENTICATION = 7,//ç”¨æˆ·è¿›å…¥æˆ¿é—´
+    WS_OP_CONNECT_SUCCESS = 8, //è¿›æˆ¿å›åº”
+
+    WS_BODY_PROTOCOL_VERSION_NORMAL = 0,//æ™®é€šæ¶ˆæ¯
+    WS_BODY_PROTOCOL_VERSION_HEARTBEAT = 1,//Body å†…å®¹ä¸ºæˆ¿é—´äººæ°”å€¼
+    WS_BODY_PROTOCOL_VERSION_DEFLATE = 2,//éœ€è¦ç”¨zlib.inflateè§£å‹å‡ºä¸€ä¸ªæ–°çš„æ•°æ®åŒ…
+    WS_BODY_PROTOCOL_VERSION_BROTLI = 3,//brotliå‹ç¼©ä¿¡æ¯
+    WS_HEADER_DEFAULT_VERSION = 1,
+    WS_HEADER_DEFAULT_OPERATION = 1,
+    WS_HEADER_DEFAULT_SEQUENCE = 1,
+
+    WS_PACKAGE_HEADER_TOTAL_LENGTH = 16,//å¤´éƒ¨å­—èŠ‚å¤§å°
     WS_PACKAGE_OFFSET = 0,
     WS_HEADER_OFFSET = 4,
     WS_VERSION_OFFSET = 6,
     WS_OPERATION_OFFSET = 8,
     WS_SEQUENCE_OFFSET = 12,
-    WS_BODY_PROTOCOL_VERSION_NORMAL = 0,//ÆÕÍ¨ÏûÏ¢
-    WS_BODY_PROTOCOL_VERSION_BROTLI = 3,//brotliÑ¹ËõĞÅÏ¢
-    WS_HEADER_DEFAULT_VERSION = 1,
-    WS_HEADER_DEFAULT_OPERATION = 1,
-    WS_HEADER_DEFAULT_SEQUENCE = 1,
+
     WS_AUTH_OK = 0,
     WS_AUTH_TOKEN_ERROR = -101
 }
 
-public enum BLProtocol
+//å¼¹å¹•CMD
+public class BiliLiveDanmakuCmd
 {
-    JSON = 0,
-    RQ = 1,
-    ZIP_BUFFER = 2,
-    ZIP_brotli = 3,
-}
-
-public enum BLOperation
-{
-    HeartBeat = 2,
-    HeartBeat_Resp = 3,
-    NOtification = 5,
-    EnterRoom = 7,
-    EnterRoom_Resp = 8
+    public static readonly string DANMU_MSG = "DANMU_MSG";              //å¼¹å¹•æ¶ˆæ¯
+    public static readonly string WELCOME_GUARD = "WELCOME_GUARD";      //æ¬¢è¿xxxè€çˆ·
+    public static readonly string ENTRY_EFFECT = "ENTRY_EFFECT";        //æ¬¢è¿èˆ°é•¿è¿›å…¥æˆ¿é—´
+    public static readonly string WELCOME = "WELCOME";                  //æ¬¢è¿xxxè¿›å…¥æˆ¿é—´
+    public static readonly string SUPER_CHAT_MESSAGE_JPN = "SUPER_CHAT_MESSAGE_JPN";    //æ—¥æ–‡ç¿»è¯‘SC
+    public static readonly string SUPER_CHAT_MESSAGE = "SUPER_CHAT_MESSAGE";            //åŸæ–‡SCç•™è¨€
 }
 
 public struct BiliLiveRoomInfo
@@ -70,14 +71,14 @@ public struct BiliLiveHostInfo
     public BiliLiveHostInfoHostData[] hostList;
 }
 
-//Êı¾İ°üÍ·²¿Êı¾İ
+//æ•°æ®åŒ…å¤´éƒ¨æ•°æ®
 //https://github.com/lovelyyoshino/Bilibili-Live-API/blob/master/API.WebSocket.md
-//×îºóĞèÒª×ªÎªÒ»¸ö16Î»byteÊı¾İ
+//'>I2H2I'ç»“æ„ä½“å®šä¹‰(>è¡¨ç¤ºè¿™æ˜¯ä¸€ä¸ªå¤§ç«¯åºï¼ŒäºŒè¿›åˆ¶é«˜ä½åœ¨å·¦è¾¹ã€‚Iè¡¨ç¤ºæ— ç¬¦å·æ•´å‹æ•°å­—ï¼Œå 4ä¸ªå­—èŠ‚ï¼ŒH è¡¨ç¤ºæ— ç¬¦å·çŸ­æ•´å‹ï¼Œå ç”¨2ä¸ªå­—èŠ‚ã€‚2Hæ˜¯HHçš„ç®€åŒ–å†™æ³•)
 public struct BiliLiveHeader
 {
-    public int pack_len;            //Êı¾İ°ü³¤¶È(°üº¬body)
-    public int raw_header_size;     //Êı¾İ°üÍ·²¿³¤¶È£¨¹Ì¶¨Îª 16£©
-    public int ver;                 //Ğ­Òé°æ±¾£¨¼ûÏÂÎÄ£©
-    public int operation;           //²Ù×÷ÀàĞÍ£¨¼ûÏÂÎÄ£©
-    public int seq_id;              //Êı¾İ°üÍ·²¿³¤¶È£¨¹Ì¶¨Îª 1£©
+    public uint pack_len;               //æ•°æ®åŒ…é•¿åº¦(åŒ…å«body)
+    public ushort raw_header_size;      //æ•°æ®åŒ…å¤´éƒ¨é•¿åº¦ï¼ˆå›ºå®šä¸º 16ï¼‰
+    public ushort ver;                  //åè®®ç‰ˆæœ¬ï¼ˆè§ä¸‹æ–‡ï¼‰
+    public uint operation;              //æ“ä½œç±»å‹ï¼ˆè§ä¸‹æ–‡ï¼‰
+    public uint seq_id;                 //æ•°æ®åŒ…å¤´éƒ¨é•¿åº¦ï¼ˆå›ºå®šä¸º 1ï¼‰
 }

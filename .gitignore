@@ -22,7 +22,7 @@ ExportedObj/
 *.vs
 *.objs
 *.history
-
+._*
 
 # Unity3D generated meta files
 *.pidb.meta
