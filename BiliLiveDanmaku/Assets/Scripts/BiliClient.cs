@@ -181,6 +181,66 @@ public class BiliLiveClient
         return PackageData(body, operation);
     }
 
+    private void ParsePackData(byte[] data)
+    {
+        UnpackageData(data, out var outHeader, out var outBody);
+        var str = Encoding.UTF8.GetString(outBody, 0, (int)outHeader.pack_len - (int)outHeader.raw_header_size);
+
+        if (outHeader.operation == (uint)BiliLiveCode.WS_OP_HEARTBEAT_REPLY)
+        {
+            //好像什么都没返回
+        }
+        else if (outHeader.operation == (uint)BiliLiveCode.WS_OP_MESSAGE)
+        {
+            if (outHeader.ver == (uint)BiliLiveCode.WS_BODY_PROTOCOL_VERSION_NORMAL) //JSON明文
+            {
+                ParseDanmakuMsg(str);
+            }
+            else if (outHeader.ver == (uint)BiliLiveCode.WS_BODY_PROTOCOL_VERSION_DEFLATE)
+            {
+                //需要剥离头部信息
+                var newData = ZipUtility.Decompress_Deflate(outBody);
+                ParsePackData(newData);
+            }
+        }
+        else if (outHeader.operation == (uint)BiliLiveCode.WS_OP_CONNECT_SUCCESS)
+        {
+            //JSON数据
+            //{"code":0}
+        }
+    }
+
+    private void ParseDanmakuMsg(string jsonStr)
+    {
+        try
+        {
+            var jsonData = JsonMapper.ToObject(jsonStr);
+            var cmd = jsonData["cmd"].ToString();
+
+            if (cmd == BiliLiveDanmakuCmd.DANMU_MSG)
+            {
+                var info = jsonData["info"];
+                var uid = info[2][0].ToString();
+                var nick = info[2][1].ToString();
+                var content = info[1].ToString();
+
+                Debug.LogFormat("{0}:{1}", nick, content);
+
+            }
+            else if(cmd == BiliLiveDanmakuCmd.SEND_GIFT)
+            {
+                
+
+
+            }
+            //Debug.Log(jsonStr);
+        }
+        catch(Exception _)
+        {
+
+        }
+    }
+
     //封装一个数据包
     private byte[] PackageData(byte[] body, uint operation)
     {
@@ -211,6 +271,7 @@ public class BiliLiveClient
         outBody = body;
     }
 
+    
     //
     private async void OnTimerEvent()
     {
@@ -219,40 +280,12 @@ public class BiliLiveClient
 
     private void OnWebsocketMessage(byte[] data)
     {
-        UnpackageData(data, out var blHeader, out var outBody);
-
         //TODO:粘包问题,如果body的长度不合理,需要根据header头部的len拼接数据
-        var str = Encoding.UTF8.GetString(outBody, 0, outBody.Length);
-        if (blHeader.operation == (uint)BiliLiveCode.WS_OP_HEARTBEAT_REPLY)
-        {
-            //好像什么都没返回
-        }
-        else if (blHeader.operation == (uint)BiliLiveCode.WS_OP_MESSAGE)
-        {
-            if (blHeader.ver == (uint)BiliLiveCode.WS_BODY_PROTOCOL_VERSION_NORMAL) //JSON明文
-            {
+        //TODO:有时候2个包当成1个包发送
 
-            }
-            else if(blHeader.ver == (uint)BiliLiveCode.WS_BODY_PROTOCOL_VERSION_DEFLATE)
-            {
-                //TODO:需要剥离头部信息
-                var newBody = ZipUtility.Decompress_Deflate(outBody);
-                var msg = Encoding.UTF8.GetString(newBody, 0, newBody.Length);
+        UnpackageData(data, out var outHeader, out var _);
+        //Debug.LogFormat("{0},{1},{2}", outHeader.pack_len, outHeader.operation, outHeader.ver);
 
-                //TODO:Json数据
-                Debug.Log(msg);
-
-                //TODO:判断BiliLiveDanmakuCmd类型
-            }
-        }
-        else if (blHeader.operation == (uint)BiliLiveCode.WS_OP_CONNECT_SUCCESS)
-        {
-            //JSON数据
-            //{"code":0}
-        }
-
-        Debug.LogFormat("{0},{1}",blHeader.operation, blHeader.ver);
-        Debug.Log(str);
-
+        ParsePackData(data);
     }
 }

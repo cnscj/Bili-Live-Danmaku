@@ -38,8 +38,11 @@ public class WebSocket
     {
         if (_ws != null)
         {
-            await _ws.CloseAsync(WebSocketCloseStatus.NormalClosure, "Disconnect", _ct);
             OnClose();
+            if (_ws.State != WebSocketState.Closed)
+            {
+                await _ws.CloseAsync(WebSocketCloseStatus.NormalClosure, "Disconnect", _ct);
+            }
             _ws = null;
         }
     }

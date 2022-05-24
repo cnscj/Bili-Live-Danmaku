@@ -40,12 +40,20 @@ public enum BiliLiveCode
 //弹幕CMD
 public class BiliLiveDanmakuCmd
 {
-    public static readonly string DANMU_MSG = "DANMU_MSG";              //弹幕消息
-    public static readonly string WELCOME_GUARD = "WELCOME_GUARD";      //欢迎xxx老爷
-    public static readonly string ENTRY_EFFECT = "ENTRY_EFFECT";        //欢迎舰长进入房间
-    public static readonly string WELCOME = "WELCOME";                  //欢迎xxx进入房间
-    public static readonly string SUPER_CHAT_MESSAGE_JPN = "SUPER_CHAT_MESSAGE_JPN";    //日文翻译SC
-    public static readonly string SUPER_CHAT_MESSAGE = "SUPER_CHAT_MESSAGE";            //原文SC留言
+    public const string DANMU_MSG = "DANMU_MSG";              //弹幕消息
+    public const string WELCOME_GUARD = "WELCOME_GUARD";      //欢迎xxx老爷
+    public const string ENTRY_EFFECT = "ENTRY_EFFECT";        //欢迎舰长进入房间
+    public const string WELCOME = "WELCOME";                  //欢迎xxx进入房间
+    public const string SUPER_CHAT_MESSAGE_JPN = "SUPER_CHAT_MESSAGE_JPN";    //日文翻译SC
+    public const string SUPER_CHAT_MESSAGE = "SUPER_CHAT_MESSAGE";            //原文SC留言
+
+    public const string SEND_GIFT = "SEND_GIFT";                //投喂礼物
+
+    public const string GUARD_BUY = "GUARD_BUY";                //上舰长
+    public const string USER_TOAST_MSG = "USER_TOAST_MSG";      //续费了舰长
+    public const string NOTICE_MSG = "NOTICE_MSG";              //在本房间续费了舰长
+
+    public const string ROOM_REAL_TIME_MESSAGE_UPDATE = "ROOM_REAL_TIME_MESSAGE_UPDATE";    //粉丝关注变动
 }
 
 public struct BiliLiveRoomInfo
