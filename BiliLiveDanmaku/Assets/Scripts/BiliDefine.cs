@@ -1,11 +1,11 @@
 
 using System.Runtime.InteropServices;
 
-public class BiliLiveDefine
+public class BiliLiveDef
 {
 
-    public static readonly string ROOM_INIT_URL = "https://api.live.bilibili.com/xlive/web-room/v1/index/getInfoByRoom";
-    public static readonly string DANMAKU_SERVER_CONF_URL = "https://api.live.bilibili.com/xlive/web-room/v1/index/getDanmuInfo";
+    public static readonly string ROOM_INIT_URL = "https://api.live.bilibili.com/xlive/web-room/v1/index/getInfoByRoom";                    //房间信息API
+    public static readonly string DANMAKU_SERVER_CONF_URL = "https://api.live.bilibili.com/xlive/web-room/v1/index/getDanmuInfo";           //弹幕信息API
 
     public static readonly int HEART_BEAT_PACKET_SEND_INTERVAL = 30 * 1000;    //心跳包发送间隔
 }
@@ -88,5 +88,5 @@ public struct BiliLiveHeader
     public ushort raw_header_size;      //数据包头部长度（固定为 16）
     public ushort ver;                  //协议版本（见下文）
     public uint operation;              //操作类型（见下文）
-    public uint seq_id;                 //数据包头部长度（固定为 1）
+    public uint seq_id;                 //数据包序列（固定为 1）
 }

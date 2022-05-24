@@ -15,7 +15,7 @@ public class BiliLiveClient
 
     bool _isRunning;
     WebSocket _websocket = new WebSocket();
-    IntervalTimer _heartbeatTimer = new IntervalTimer(BiliLiveDefine.HEART_BEAT_PACKET_SEND_INTERVAL);
+    IntervalTimer _heartbeatTimer = new IntervalTimer(BiliLiveDef.HEART_BEAT_PACKET_SEND_INTERVAL);
     public BiliLiveClient(int roomId)
     {
         _roomId = roomId;
@@ -52,7 +52,7 @@ public class BiliLiveClient
     {
         try
         {
-            var jsonStr = await HttpRequest.GetAsync(BiliLiveDefine.ROOM_INIT_URL, new Dictionary<string, string> { ["room_id"] = _roomId.ToString() });
+            var jsonStr = await HttpRequest.GetAsync(BiliLiveDef.ROOM_INIT_URL, new Dictionary<string, string> { ["room_id"] = _roomId.ToString() });
             var jsonData = JsonMapper.ToObject(jsonStr);
 
             var codeStr = jsonData["code"].ToString();
@@ -79,7 +79,7 @@ public class BiliLiveClient
     {
         try
         {
-            var jsonStr = await HttpRequest.GetAsync(BiliLiveDefine.DANMAKU_SERVER_CONF_URL, new Dictionary<string, string> { ["id"] = _roomId.ToString(),["type"] = "0" });
+            var jsonStr = await HttpRequest.GetAsync(BiliLiveDef.DANMAKU_SERVER_CONF_URL, new Dictionary<string, string> { ["id"] = _roomId.ToString(),["type"] = "0" });
             var jsonData = JsonMapper.ToObject(jsonStr);
 
             var codeStr = jsonData["code"].ToString();
@@ -184,6 +184,8 @@ public class BiliLiveClient
     private void ParsePackData(byte[] data)
     {
         UnpackageData(data, out var outHeader, out var outBody);
+
+        //TODO:会出现pack_len>outBody.Length的问题
         var str = Encoding.UTF8.GetString(outBody, 0, (int)outHeader.pack_len - (int)outHeader.raw_header_size);
 
         if (outHeader.operation == (uint)BiliLiveCode.WS_OP_HEARTBEAT_REPLY)
