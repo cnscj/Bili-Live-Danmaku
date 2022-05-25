@@ -10,7 +10,7 @@ public class WebSocket
     public Action onClose;
     public Action<byte[]> onMessage;
 
-    public const int RECEIVE_BUFF_SIZE = 2048;
+    public const int RECEIVE_BUFF_SIZE = 8192;
     ClientWebSocket _ws;
     CancellationToken _ct;
     bool _isConnected;

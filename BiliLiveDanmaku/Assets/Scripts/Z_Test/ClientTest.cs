@@ -3,33 +3,19 @@ using UnityEngine;
 
 public class ClientTest : MonoBehaviour
 {
-    // Start is called before the first frame update
-    BiliLiveClient client = new BiliLiveClient(22625025);
+    //# 22634198,     #乐
+    //# 22625025,     #晚
+    //# 22625027      #琳,
+    //# 22632424      #拉,
+    //# 22637261      #然,
+    BiliLiveClient client = new BiliLiveClient(22632424);
     void Start()
     {
         client.Start();
-
-        //var client = new WebSocket();
-        //client.onOpen = () =>
-        //{
-        //    client.Send("Hellow");
-        //};
-        //client.Connect("ws://localhost:8080/");
-
-        //Debug.Log(System.Runtime.InteropServices.Marshal.SizeOf(new BiliLiveHeader()));
-    }
-
-    // Update is called once per frame
-    void Update()
-    {
-        
     }
 
     private void OnDestroy()
     {
         client.Close();
     }
-
-    
-
 }

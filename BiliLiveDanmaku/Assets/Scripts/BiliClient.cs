@@ -209,8 +209,8 @@ public class BiliLiveClient
             else if (outHeader.ver == (uint)BiliLiveCode.WS_BODY_PROTOCOL_VERSION_DEFLATE)
             {
                 //需要剥离头部信息
-                var newData = ZipUtility.Decompress_Deflate(outBody);
-                ParsePacketData(newData);
+                var newData = ZipUtility.Decompress_Deflate(outBody);   //TODO:解码后长度会变大,这里也会发生粘包现象
+                ParsePacketData(newData);   //TODO:可能多个包粘一起
             }
         }
         else if (outHeader.operation == (uint)BiliLiveCode.WS_OP_CONNECT_SUCCESS)
@@ -252,8 +252,6 @@ public class BiliLiveClient
             }
             else if (cmd == BiliLiveDanmakuCmd.SEND_GIFT)
             {
-
-
 
             }
 
@@ -317,9 +315,9 @@ public class BiliLiveClient
     private void OnWebsocketMessage(byte[] data)
     {
         var outHeader = DecodePacketHeader(data);
-        //Debug.LogFormat("len={0},op={1},ver={2},seq={3}", outHeader.pack_len, outHeader.operation, outHeader.ver, outHeader.seq_id);
+        Debug.LogFormat("len={0},op={1},ver={2},seq={3}", outHeader.pack_len, outHeader.operation, outHeader.ver, outHeader.seq_id);
 
-        //整包过长问题
+        //FIXME:整包过长问题
         if (_tempBuffs.Count > 0)
         {
             var finalData = new List<byte>();
@@ -328,6 +326,7 @@ public class BiliLiveClient
                 var lastData = _tempBuffs.Pop();
                 finalData.AddRange(lastData);
             }
+
             finalData.AddRange(data);
             data = finalData.ToArray();
 
