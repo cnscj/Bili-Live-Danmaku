@@ -1,6 +1,5 @@
-using System.Collections;
+
 using System.Collections.Generic;
-using System.Threading;
 using System.Threading.Tasks;
 using UnityEngine;
 using System;
@@ -9,18 +8,25 @@ using System.Text;
 
 public class BiliLiveClient
 {
+    public Action<string> onDanmakuMsg;
+
     int _roomId;
+    bool _isRunning;
+
     BiliLiveRoomInfo _roomInfo;
     BiliLiveHostInfo _hostInfo;
 
-    bool _isRunning;
     WebSocket _websocket = new WebSocket();
     IntervalTimer _heartbeatTimer = new IntervalTimer(BiliLiveDef.HEART_BEAT_PACKET_SEND_INTERVAL);
+
+    Stack<byte[]> _tempBuffs = new Stack<byte[]>();
+
     public BiliLiveClient(int roomId)
     {
         _roomId = roomId;
         _heartbeatTimer.onEvent = OnTimerEvent;
         _websocket.onMessage = OnWebsocketMessage;
+        onDanmakuMsg = OnDanmakuMsg;
     }
 
     public bool IsRunning()
@@ -60,12 +66,15 @@ public class BiliLiveClient
             {
                 var room_info = jsonData["data"]["room_info"];
 
-                _roomInfo.realRoomId = int.Parse(room_info["room_id"].ToString());
+                _roomInfo.longRoomId = int.Parse(room_info["room_id"].ToString());
                 _roomInfo.shortRoomId = int.Parse(room_info["short_id"].ToString());
+
                 _roomInfo.roomTitle = room_info["title"].ToString();
                 _roomInfo.roomOwnerUid = int.Parse(room_info["uid"].ToString());
 
-                Debug.LogFormat("room={0},title={1},uid={2}", _roomInfo.realRoomId, _roomInfo.roomTitle, _roomInfo.roomOwnerUid);
+                _roomInfo.finalRoomId = (_roomInfo.shortRoomId != 0) ? _roomInfo.shortRoomId : _roomInfo.longRoomId;
+
+                Debug.LogFormat("room_id={0},short_id={1},title={2}", _roomInfo.longRoomId, _roomInfo.shortRoomId, _roomInfo.roomTitle);
             }
         }
         catch(Exception)
@@ -117,7 +126,7 @@ public class BiliLiveClient
         //建立WebSocket链接,这里应该对每个进行尝试
         foreach(var hostData in _hostInfo.hostList)
         {
-            await ConnectWebscoket("ws", hostData.host, hostData.wsPort);
+            await ConnectWebscoket("wss", hostData.host, hostData.wssPort);
             await SendAuthPacket();
             KeepConnect();
 
@@ -153,11 +162,11 @@ public class BiliLiveClient
         var authArgs = new Dictionary<string, object>();
         //XXX:应该不是房主自己,这里传太多参数会导致链接失败
 
-        //authArgs["uid"] = 0;//_roomInfo.roomOwnerUid;   
-        authArgs["roomid"] = _roomInfo.realRoomId;
+        //authArgs["uid"] = 0;//_roomInfo.roomOwnerUid;
         //authArgs["protover"] = 3;
         //authArgs["platform"] = "web";
-        //authArgs["type"] = 2;
+        //authArgs["type"] = 2;   
+        authArgs["roomid"] = _roomInfo.finalRoomId;
         authArgs["key"] = _hostInfo.token;
 
         var data = MakePackData(authArgs, (uint)BiliLiveCode.WS_OP_USER_AUTHENTICATION);
@@ -181,13 +190,11 @@ public class BiliLiveClient
         return PackageData(body, operation);
     }
 
-    private void ParsePackData(byte[] data)
+    private void ParsePacketData(byte[] data)
     {
         UnpackageData(data, out var outHeader, out var outBody);
 
-        //TODO:会出现pack_len>outBody.Length的问题
-        var str = Encoding.UTF8.GetString(outBody, 0, (int)outHeader.pack_len - (int)outHeader.raw_header_size);
-
+        //会出现pack_len>outBody.Length的问题
         if (outHeader.operation == (uint)BiliLiveCode.WS_OP_HEARTBEAT_REPLY)
         {
             //好像什么都没返回
@@ -196,23 +203,37 @@ public class BiliLiveClient
         {
             if (outHeader.ver == (uint)BiliLiveCode.WS_BODY_PROTOCOL_VERSION_NORMAL) //JSON明文
             {
-                ParseDanmakuMsg(str);
+                var str = Encoding.UTF8.GetString(outBody, 0, (int)outHeader.pack_len - (int)outHeader.raw_header_size);
+                onDanmakuMsg?.Invoke(str);
             }
             else if (outHeader.ver == (uint)BiliLiveCode.WS_BODY_PROTOCOL_VERSION_DEFLATE)
             {
                 //需要剥离头部信息
                 var newData = ZipUtility.Decompress_Deflate(outBody);
-                ParsePackData(newData);
+                ParsePacketData(newData);
             }
         }
         else if (outHeader.operation == (uint)BiliLiveCode.WS_OP_CONNECT_SUCCESS)
         {
-            //JSON数据
-            //{"code":0}
+            try
+            {
+                var str = Encoding.UTF8.GetString(outBody, 0, (int)outHeader.pack_len - (int)outHeader.raw_header_size);
+                var jsonData = JsonMapper.ToObject(str);
+                var code = int.Parse(jsonData["code"].ToString());
+                if (code != 0)
+                {
+                    Debug.LogError("Connect Error");
+                }
+            }
+            catch (Exception)
+            {
+                Debug.LogError("Parse Error");
+            }
         }
     }
 
-    private void ParseDanmakuMsg(string jsonStr)
+    //弹幕类解析
+    private void OnDanmakuMsg(string jsonStr)
     {
         try
         {
@@ -229,20 +250,31 @@ public class BiliLiveClient
                 Debug.LogFormat("{0}:{1}", nick, content);
 
             }
-            else if(cmd == BiliLiveDanmakuCmd.SEND_GIFT)
+            else if (cmd == BiliLiveDanmakuCmd.SEND_GIFT)
             {
-                
+
 
 
             }
-            //Debug.Log(jsonStr);
-        }
-        catch(Exception _)
-        {
 
+        }
+        catch (Exception)
+        {
+            Debug.LogError("Parse Error");
         }
     }
 
+    //
+    private BiliLiveHeader DecodePacketHeader(byte[] data)
+    {
+        var headerData = new byte[16];
+        Array.Copy(data, 0, headerData, 0, headerData.Length);
+        object blHeader = new BiliLiveHeader();
+        ByteHelper.ByteArrayToStructureEndian(headerData, ref blHeader, 0);
+        var header = (BiliLiveHeader)blHeader;
+
+        return header;
+    }
     //封装一个数据包
     private byte[] PackageData(byte[] body, uint operation)
     {
@@ -259,17 +291,19 @@ public class BiliLiveClient
     }
 
     //解析一个数据包
-    private void UnpackageData(byte[] data, out BiliLiveHeader outHader, out byte[] outBody)
+    private void UnpackageData(byte[] data, out BiliLiveHeader outHeader, out byte[] outBody)
     {
-        var header = new byte[16];
-        var body = new byte[2048];
-
-        ByteHelper.SpliteBytes(data, header, body);
+        var headerData = new byte[16];
+        ByteHelper.SpliteBytes(data, headerData, null);
 
         object blHeader = new BiliLiveHeader();
-        ByteHelper.ByteArrayToStructureEndian(header, ref blHeader, 0);
+        ByteHelper.ByteArrayToStructureEndian(headerData, ref blHeader, 0);
+        var header = (BiliLiveHeader)blHeader;
 
-        outHader = (BiliLiveHeader)blHeader;
+        var body = new byte[header.pack_len - header.raw_header_size];
+        ByteHelper.SpliteBytes(data, headerData, body);
+
+        outHeader = header;
         outBody = body;
     }
 
@@ -282,12 +316,34 @@ public class BiliLiveClient
 
     private void OnWebsocketMessage(byte[] data)
     {
-        //TODO:粘包问题,如果body的长度不合理,需要根据header头部的len拼接数据
-        //TODO:有时候2个包当成1个包发送
+        var outHeader = DecodePacketHeader(data);
+        //Debug.LogFormat("len={0},op={1},ver={2},seq={3}", outHeader.pack_len, outHeader.operation, outHeader.ver, outHeader.seq_id);
 
-        UnpackageData(data, out var outHeader, out var _);
-        //Debug.LogFormat("{0},{1},{2}", outHeader.pack_len, outHeader.operation, outHeader.ver);
+        //整包过长问题
+        if (_tempBuffs.Count > 0)
+        {
+            var finalData = new List<byte>();
+            while (_tempBuffs.Count > 0)
+            {
+                var lastData = _tempBuffs.Pop();
+                finalData.AddRange(lastData);
+            }
+            finalData.AddRange(data);
+            data = finalData.ToArray();
 
-        ParsePackData(data);
+            ParsePacketData(data);
+        }
+        else
+        {
+            if (outHeader.pack_len > WebSocket.RECEIVE_BUFF_SIZE)
+            {
+                _tempBuffs.Push(data);
+            }
+            else
+            {
+                ParsePacketData(data);
+            }
+
+        }
     }
 }

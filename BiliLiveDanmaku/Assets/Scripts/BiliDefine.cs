@@ -1,13 +1,10 @@
-
-using System.Runtime.InteropServices;
-
 public class BiliLiveDef
 {
 
-    public static readonly string ROOM_INIT_URL = "https://api.live.bilibili.com/xlive/web-room/v1/index/getInfoByRoom";                    //房间信息API
-    public static readonly string DANMAKU_SERVER_CONF_URL = "https://api.live.bilibili.com/xlive/web-room/v1/index/getDanmuInfo";           //弹幕信息API
+    public const string ROOM_INIT_URL = "https://api.live.bilibili.com/xlive/web-room/v1/index/getInfoByRoom";                    //房间信息API
+    public const string DANMAKU_SERVER_CONF_URL = "https://api.live.bilibili.com/xlive/web-room/v1/index/getDanmuInfo";           //弹幕信息API
 
-    public static readonly int HEART_BEAT_PACKET_SEND_INTERVAL = 30 * 1000;    //心跳包发送间隔
+    public const int HEART_BEAT_PACKET_SEND_INTERVAL = 30 * 1000;    //心跳包发送间隔
 }
 
 public enum BiliLiveCode
@@ -58,7 +55,9 @@ public class BiliLiveDanmakuCmd
 
 public struct BiliLiveRoomInfo
 {
-    public int realRoomId;
+    public int finalRoomId;
+
+    public int longRoomId;
     public int shortRoomId;
     public string roomTitle;
     public int roomOwnerUid;

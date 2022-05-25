@@ -1,20 +1,19 @@
 using System;
-using System.Collections.Generic;
 using System.Net.WebSockets;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using UnityEngine;
 
 public class WebSocket
 {
-    ClientWebSocket _ws;
-    CancellationToken _ct;
-    bool _isConnected;
-
     public Action onOpen;
     public Action onClose;
     public Action<byte[]> onMessage;
+
+    public const int RECEIVE_BUFF_SIZE = 2048;
+    ClientWebSocket _ws;
+    CancellationToken _ct;
+    bool _isConnected;
 
     public async Task Connect(string addr)
     {
@@ -59,10 +58,11 @@ public class WebSocket
     {
         while (_isConnected)
         {
-            var result = new byte[2048];
-            await _ws.ReceiveAsync(new ArraySegment<byte>(result), new CancellationToken());//接受数据
+            var buff = new byte[RECEIVE_BUFF_SIZE];
+            var result = new ArraySegment<byte>(buff);
+            await _ws.ReceiveAsync(result, new CancellationToken());//接受数据
 
-            OnMessage(result);
+            OnMessage(result.Array);
         }
     }
 

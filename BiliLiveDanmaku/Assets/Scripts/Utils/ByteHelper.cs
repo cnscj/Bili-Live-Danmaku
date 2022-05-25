@@ -176,10 +176,23 @@ public class ByteHelper
     }
 
     //分割字节数组
-    public static void SpliteBytes(byte[] data ,in byte[] bytes1, in byte[] bytes2)
+    public static bool SpliteBytes(byte[] data ,in byte[] bytes1, in byte[] bytes2)
     {
-        Array.Copy(data, 0, bytes1, 0, bytes1.Length);
-        Array.Copy(data, bytes1.Length, bytes2, 0, Math.Min(data.Length - bytes1.Length, bytes2.Length));
+        if (data == null)
+        {
+            return false;
+        }
+
+        if (bytes1 != null)
+        {
+            Array.Copy(data, 0, bytes1, 0, bytes1.Length);
+            if (bytes2 != null)
+            {
+                Array.Copy(data, bytes1.Length, bytes2, 0, Math.Min(data.Length - bytes1.Length, bytes2.Length));
+            }
+        }
+        
+        return true;
     }
 
     /// <summary>
