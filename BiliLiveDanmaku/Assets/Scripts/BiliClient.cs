@@ -19,8 +19,6 @@ public class BiliLiveClient
     WebSocket _websocket = new WebSocket();
     IntervalTimer _heartbeatTimer = new IntervalTimer(BiliLiveDef.HEART_BEAT_PACKET_SEND_INTERVAL);
 
-    Stack<byte[]> _tempBuffs = new Stack<byte[]>();
-
     public BiliLiveClient(int roomId)
     {
         _roomId = roomId;
@@ -192,9 +190,22 @@ public class BiliLiveClient
 
     private void ParsePacketData(byte[] data)
     {
-        UnpackageData(data, out var outHeader, out var outBody);
+        if (data == null || data.Length <= 0)
+            return;
 
-        //会出现pack_len>outBody.Length的问题
+        //解析一个数据包,多余数据裁掉
+        var isSucc = UnpackageData(data, out var outHeader, out var outBody);
+        if (!isSucc) return;
+
+        //粘包问题,截取剩下的再次解析
+        if (outHeader.pack_len > 0 && data.Length > outHeader.pack_len)
+        {
+            int subLen = (int)(data.Length - outHeader.pack_len);
+            var subData = ByteHelper.SubBytes(data, (int)outHeader.pack_len, subLen);
+            ParsePacketData(subData);
+        }
+        
+
         if (outHeader.operation == (uint)BiliLiveCode.WS_OP_HEARTBEAT_REPLY)
         {
             //好像什么都没返回
@@ -209,8 +220,8 @@ public class BiliLiveClient
             else if (outHeader.ver == (uint)BiliLiveCode.WS_BODY_PROTOCOL_VERSION_DEFLATE)
             {
                 //需要剥离头部信息
-                var newData = ZipUtility.Decompress_Deflate(outBody);   //TODO:解码后长度会变大,这里也会发生粘包现象
-                ParsePacketData(newData);   //TODO:可能多个包粘一起
+                var newData = ZipUtility.Decompress_Deflate(outBody);
+                ParsePacketData(newData);
             }
         }
         else if (outHeader.operation == (uint)BiliLiveCode.WS_OP_CONNECT_SUCCESS)
@@ -265,9 +276,15 @@ public class BiliLiveClient
     //
     private BiliLiveHeader DecodePacketHeader(byte[] data)
     {
-        var headerData = new byte[16];
-        Array.Copy(data, 0, headerData, 0, headerData.Length);
+        if (data == null || data.Length < BiliLiveDef.PACKAGE_HEADER_TOTAL_LENGTH)
+        {
+            return new BiliLiveHeader();
+        }
+        
+        var headerData = new byte[BiliLiveDef.PACKAGE_HEADER_TOTAL_LENGTH];
         object blHeader = new BiliLiveHeader();
+
+        Array.Copy(data, 0, headerData, 0, headerData.Length);
         ByteHelper.ByteArrayToStructureEndian(headerData, ref blHeader, 0);
         var header = (BiliLiveHeader)blHeader;
 
@@ -278,7 +295,7 @@ public class BiliLiveClient
     {
         var blHeader = new BiliLiveHeader();
         blHeader.raw_header_size = (ushort)System.Runtime.InteropServices.Marshal.SizeOf(blHeader);
-        blHeader.pack_len = (uint)(blHeader.raw_header_size + body.Length);
+        blHeader.pack_len = (uint)(blHeader.raw_header_size + ((body != null) ? body.Length : 0));
         blHeader.ver = 1;
         blHeader.operation = operation;
         blHeader.seq_id = 1;
@@ -289,20 +306,34 @@ public class BiliLiveClient
     }
 
     //解析一个数据包
-    private void UnpackageData(byte[] data, out BiliLiveHeader outHeader, out byte[] outBody)
+    private bool UnpackageData(byte[] data, out BiliLiveHeader outHeader, out byte[] outBody)
     {
-        var headerData = new byte[16];
+        if (data == null || data.Length < BiliLiveDef.PACKAGE_HEADER_TOTAL_LENGTH)
+        {
+            outHeader = new BiliLiveHeader();
+            outBody = null;
+            return false;
+        }
+
+        var headerData = new byte[BiliLiveDef.PACKAGE_HEADER_TOTAL_LENGTH];
         ByteHelper.SpliteBytes(data, headerData, null);
 
         object blHeader = new BiliLiveHeader();
         ByteHelper.ByteArrayToStructureEndian(headerData, ref blHeader, 0);
         var header = (BiliLiveHeader)blHeader;
 
-        var body = new byte[header.pack_len - header.raw_header_size];
-        ByteHelper.SpliteBytes(data, headerData, body);
+        int bodyLen = (int)(header.pack_len - header.raw_header_size);
+        byte[] body = default;
+        if (bodyLen > 0)
+        {
+            body = new byte[bodyLen];
+            ByteHelper.SpliteBytes(data, headerData, body);
+        }
 
         outHeader = header;
         outBody = body;
+
+        return true;
     }
 
     
@@ -314,35 +345,9 @@ public class BiliLiveClient
 
     private void OnWebsocketMessage(byte[] data)
     {
-        var outHeader = DecodePacketHeader(data);
-        Debug.LogFormat("len={0},op={1},ver={2},seq={3}", outHeader.pack_len, outHeader.operation, outHeader.ver, outHeader.seq_id);
+        //var outHeader = DecodePacketHeader(data);
+        //Debug.LogFormat("len={0},dataLen={1},op={2},ver={3},", outHeader.pack_len, data.Length ,outHeader.operation, outHeader.ver, outHeader.seq_id);
 
-        //FIXME:整包过长问题
-        if (_tempBuffs.Count > 0)
-        {
-            var finalData = new List<byte>();
-            while (_tempBuffs.Count > 0)
-            {
-                var lastData = _tempBuffs.Pop();
-                finalData.AddRange(lastData);
-            }
-
-            finalData.AddRange(data);
-            data = finalData.ToArray();
-
-            ParsePacketData(data);
-        }
-        else
-        {
-            if (outHeader.pack_len > WebSocket.RECEIVE_BUFF_SIZE)
-            {
-                _tempBuffs.Push(data);
-            }
-            else
-            {
-                ParsePacketData(data);
-            }
-
-        }
+        ParsePacketData(data);
     }
 }

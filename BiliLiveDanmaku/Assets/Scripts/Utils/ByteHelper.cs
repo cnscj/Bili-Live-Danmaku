@@ -1,5 +1,6 @@
 using System;
 using System.Runtime.InteropServices;
+using UnityEngine;
 
 public class ByteHelper
 {
@@ -168,9 +169,16 @@ public class ByteHelper
     //合并字节数组
     public static byte[] CombineBytes(byte[] bytes1, byte[] bytes2)
     {
-        byte[] byteAll = new byte[bytes1.Length + bytes2.Length];
-        Array.Copy(bytes1, 0, byteAll, 0, bytes1.Length);
-        Array.Copy(bytes2, 0, byteAll, bytes1.Length, bytes2.Length);
+        int allLen = ((bytes1 != null) ? bytes1.Length : 0) + ((bytes2 != null) ? bytes2.Length : 0);
+        byte[] byteAll = new byte[allLen];
+        if (bytes1 != null && bytes1.Length > 0)
+        {
+            Array.Copy(bytes1, 0, byteAll, 0, bytes1.Length);
+            if (bytes2 != null && bytes2.Length > 0)
+            {
+                Array.Copy(bytes2, 0, byteAll, bytes1.Length, bytes2.Length);
+            }
+        }
 
         return byteAll;
     }
@@ -178,21 +186,31 @@ public class ByteHelper
     //分割字节数组
     public static bool SpliteBytes(byte[] data ,in byte[] bytes1, in byte[] bytes2)
     {
-        if (data == null)
+        if (data == null || data.Length <= 0)
         {
             return false;
         }
 
         if (bytes1 != null)
         {
-            Array.Copy(data, 0, bytes1, 0, bytes1.Length);
+            Array.Copy(data, 0, bytes1, 0, Math.Min(data.Length, bytes1.Length));
             if (bytes2 != null)
             {
                 Array.Copy(data, bytes1.Length, bytes2, 0, Math.Min(data.Length - bytes1.Length, bytes2.Length));
             }
         }
-        
         return true;
+    }
+
+    //截取
+    public static byte[] SubBytes(byte[] srcArray, int start, int length)
+    {
+        if (length <= 0)
+            return default;
+
+        byte[] retArray = new byte[length];
+        Array.Copy(srcArray, start, retArray, 0, length);
+        return retArray;
     }
 
     /// <summary>

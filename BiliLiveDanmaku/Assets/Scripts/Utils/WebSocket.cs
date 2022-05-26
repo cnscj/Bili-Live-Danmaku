@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Net.WebSockets;
 using System.Text;
 using System.Threading;
@@ -10,10 +11,12 @@ public class WebSocket
     public Action onClose;
     public Action<byte[]> onMessage;
 
-    public const int RECEIVE_BUFF_SIZE = 8192;
+    public const int RECEIVE_BUFF_SIZE = 2048;
+
     ClientWebSocket _ws;
     CancellationToken _ct;
     bool _isConnected;
+    Queue<byte[]> _dataQueue = new Queue<byte[]>();
 
     public async Task Connect(string addr)
     {
@@ -56,14 +59,34 @@ public class WebSocket
 
     private async void LoopReceive()
     {
+        List<byte> retBuff = new List<byte>();
         while (_isConnected)
         {
-            var buff = new byte[RECEIVE_BUFF_SIZE];
-            var result = new ArraySegment<byte>(buff);
-            await _ws.ReceiveAsync(result, new CancellationToken());//接受数据
+            retBuff.Clear();
+            bool isEndOfMessage;
+            do
+            {
+                var buffer = new ArraySegment<byte>(new byte[RECEIVE_BUFF_SIZE]);
+                var result = await _ws.ReceiveAsync(buffer, new CancellationToken());//接收数据
 
-            OnMessage(result.Array);
+                retBuff.AddRange(new ArraySegment<byte>(buffer.Array,0,result.Count));
+                isEndOfMessage = result.EndOfMessage;
+
+            } while (!isEndOfMessage);
+            _dataQueue.Enqueue(retBuff.ToArray());
+
+            //通知有新的消息
+            Notify();
         }
+    }
+
+    private void Notify()
+    {
+        //Task.Run(() =>
+        //{
+            var data = _dataQueue.Dequeue();
+            OnMessage(data);
+        //});
     }
 
     //

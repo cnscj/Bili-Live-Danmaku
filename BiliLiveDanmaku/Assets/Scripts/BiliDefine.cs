@@ -5,6 +5,7 @@ public class BiliLiveDef
     public const string DANMAKU_SERVER_CONF_URL = "https://api.live.bilibili.com/xlive/web-room/v1/index/getDanmuInfo";           //弹幕信息API
 
     public const int HEART_BEAT_PACKET_SEND_INTERVAL = 30 * 1000;    //心跳包发送间隔
+    public const int PACKAGE_HEADER_TOTAL_LENGTH = 16;              //头部字节大小
 }
 
 public enum BiliLiveCode
@@ -23,7 +24,7 @@ public enum BiliLiveCode
     WS_HEADER_DEFAULT_OPERATION = 1,
     WS_HEADER_DEFAULT_SEQUENCE = 1,
 
-    WS_PACKAGE_HEADER_TOTAL_LENGTH = 16,//头部字节大小
+    WS_PACKAGE_HEADER_TOTAL_LENGTH = 16,
     WS_PACKAGE_OFFSET = 0,
     WS_HEADER_OFFSET = 4,
     WS_VERSION_OFFSET = 6,
