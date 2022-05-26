@@ -24,6 +24,7 @@ public class WebSocket
         await CreateConnect(addr);
 
         LoopReceive();
+        LoopNotify();
     }
 
     public async void Send(string msg)
@@ -67,27 +68,32 @@ public class WebSocket
             do
             {
                 var buffer = new ArraySegment<byte>(new byte[RECEIVE_BUFF_SIZE]);
-                var result = await _ws.ReceiveAsync(buffer, new CancellationToken());//接收数据
+                var result = await _ws.ReceiveAsync(buffer, _ct);//接收数据
 
                 retBuff.AddRange(new ArraySegment<byte>(buffer.Array,0,result.Count));
                 isEndOfMessage = result.EndOfMessage;
 
             } while (!isEndOfMessage);
             _dataQueue.Enqueue(retBuff.ToArray());
-
-            //通知有新的消息
-            Notify();
         }
     }
 
-    private void Notify()
+    private void LoopNotify()
     {
-        //Task.Run(() =>
-        //{
-            var data = _dataQueue.Dequeue();
-            OnMessage(data);
-        //});
+        _dataQueue.Clear();
+        Task.Run(() =>
+        {
+            while (_isConnected)
+            {
+                while (_dataQueue.Count > 0)
+                {
+                    var data = _dataQueue.Dequeue();
+                    OnMessage(data);
+                }
+            }
+        });
     }
+
 
     //
     protected void OnOpen()
