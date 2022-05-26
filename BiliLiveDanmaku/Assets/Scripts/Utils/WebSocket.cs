@@ -29,11 +29,23 @@ public class WebSocket
 
     public async void Send(string msg)
     {
+        if (_ws == null)
+            return;
+
+        if (_ws.State != WebSocketState.Open && _ws.State != WebSocketState.CloseSent)
+            return;
+
         await _ws.SendAsync(new ArraySegment<byte>(Encoding.UTF8.GetBytes(msg)), WebSocketMessageType.Text, true, _ct); //发送数据
     }
 
     public async Task Send(byte[] data)
     {
+        if (_ws == null)
+            return;
+
+        if (_ws.State != WebSocketState.Open && _ws.State != WebSocketState.CloseSent)
+            return;
+
         await _ws.SendAsync(new ArraySegment<byte>(data), WebSocketMessageType.Binary, true, _ct); //发送数据
     }
 
@@ -67,6 +79,9 @@ public class WebSocket
             bool isEndOfMessage;
             do
             {
+                if (_ws.State != WebSocketState.Open && _ws.State != WebSocketState.CloseSent)
+                    break;
+
                 var buffer = new ArraySegment<byte>(new byte[RECEIVE_BUFF_SIZE]);
                 var result = await _ws.ReceiveAsync(buffer, _ct);//接收数据
 
