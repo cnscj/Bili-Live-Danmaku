@@ -42,6 +42,8 @@ public class BiliLiveDanmakuCmd
     public const string WELCOME_GUARD = "WELCOME_GUARD";      //欢迎xxx老爷
     public const string ENTRY_EFFECT = "ENTRY_EFFECT";        //欢迎舰长进入房间
     public const string WELCOME = "WELCOME";                  //欢迎xxx进入房间
+    public const string INTERACT_WORD = "INTERACT_WORD";      //进入了房间
+
     public const string SUPER_CHAT_MESSAGE_JPN = "SUPER_CHAT_MESSAGE_JPN";    //日文翻译SC
     public const string SUPER_CHAT_MESSAGE = "SUPER_CHAT_MESSAGE";            //原文SC留言
 
@@ -50,6 +52,8 @@ public class BiliLiveDanmakuCmd
     public const string GUARD_BUY = "GUARD_BUY";                //上舰长
     public const string USER_TOAST_MSG = "USER_TOAST_MSG";      //续费了舰长
     public const string NOTICE_MSG = "NOTICE_MSG";              //在本房间续费了舰长
+
+    public const string ONLINE_RANK_COUNT = "ONLINE_RANK_COUNT"; // 高能榜数量更新
 
     public const string ROOM_REAL_TIME_MESSAGE_UPDATE = "ROOM_REAL_TIME_MESSAGE_UPDATE";    //粉丝关注变动
 }
