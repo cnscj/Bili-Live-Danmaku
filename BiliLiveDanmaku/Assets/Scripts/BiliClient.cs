@@ -35,12 +35,15 @@ public class BiliLiveClient
     public async void Start()
     {
         if (_isRunning) return;
-        _isRunning = true;
+        
+        var isRoomInitSucc = await InitRoomInfo();
+        var isHostInitSucc = await InitHostServer();
 
-        await InitRoomInfo();
-        await InitHostServer();
-
-        await ConnectRoom();
+        if (isRoomInitSucc && isHostInitSucc)
+        {
+            _isRunning = true;
+            await ConnectRoom();
+        }
     }
 
     public async void Close()
@@ -52,7 +55,7 @@ public class BiliLiveClient
 
     ////////////////////////
 
-    private async Task InitRoomInfo()
+    private async Task<bool> InitRoomInfo()
     {
         try
         {
@@ -73,16 +76,22 @@ public class BiliLiveClient
                 _roomInfo.finalRoomId = (_roomInfo.shortRoomId != 0) ? _roomInfo.shortRoomId : _roomInfo.longRoomId;
 
                 Debug.LogFormat("room_id={0},short_id={1},title={2}", _roomInfo.longRoomId, _roomInfo.shortRoomId, _roomInfo.roomTitle);
+
+                return true;
+            }
+            else
+            {
+                Debug.LogError(jsonData["message"]);
             }
         }
         catch(Exception)
         {
-
+            Debug.LogError("Parse Error");
         }
-
+        return false;
     }
 
-    private async Task InitHostServer()
+    private async Task<bool> InitHostServer()
     {
         try
         {
@@ -111,12 +120,18 @@ public class BiliLiveClient
                 }
 
                 Debug.LogFormat("token={0}", _hostInfo.token);
+                return true;
+            }
+            else
+            {
+                Debug.LogError(jsonData["message"]);
             }
         }
         catch (Exception)
         {
-
+            Debug.LogError("Parse Error");
         }
+        return false;
     }
 
     private async Task ConnectRoom()
