@@ -8,6 +8,7 @@ using System.Text;
 
 public class BiliLiveClient
 {
+    //Unity代码不能在子线程执行,Unity代码交由程序在Update中处理
     public Action<string> onDanmakuMsg;
 
     int _roomId;
@@ -27,14 +28,29 @@ public class BiliLiveClient
         onDanmakuMsg = OnDanmakuMsg;
     }
 
+    public BiliLiveClient() : this(-1)
+    {
+
+    }
+
     public bool IsRunning()
     {
         return _isRunning;
     }
 
+    public void Start(int roomId)
+    {
+        _roomId = roomId;
+        Close();
+        Start();
+    }
+
     public async void Start()
     {
-        if (_isRunning) return;
+        if (_isRunning)
+        {
+            return;
+        }
         
         var isRoomInitSucc = await InitRoomInfo();
         var isHostInitSucc = await InitHostServer();
@@ -278,7 +294,13 @@ public class BiliLiveClient
             }
             else if (cmd == BiliLiveDanmakuCmd.SEND_GIFT)
             {
+                var data = jsonData["data"];
+                var uid = data["uid"];
+                var uname = data["uname"].ToString();
+                var action = data["action"].ToString();
+                var giftName = data["giftName"].ToString();
 
+                Debug.LogFormat("[{0}{1}{2}]", uname, action, giftName);
             }
 
         }

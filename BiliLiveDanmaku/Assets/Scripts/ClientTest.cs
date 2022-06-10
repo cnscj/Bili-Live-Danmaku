@@ -8,7 +8,7 @@ public class ClientTest : MonoBehaviour
     //# 22625027      #琳,
     //# 22632424      #拉,
     //# 22637261      #然,
-    BiliLiveClient client = new BiliLiveClient(22625025);
+    BiliLiveClient client = new BiliLiveClient(22637261);
     void Start()
     {
         client.Start();
