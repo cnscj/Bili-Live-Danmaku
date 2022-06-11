@@ -38,14 +38,14 @@ public class BiliLiveClient
         return _isRunning;
     }
 
-    public void Start(int roomId)
+    public async Task Start(int roomId)
     {
         _roomId = roomId;
-        Close();
-        Start();
+        await Close();
+        await Start();
     }
 
-    public async void Start()
+    public async Task Start()
     {
         if (_isRunning)
         {
@@ -62,7 +62,7 @@ public class BiliLiveClient
         }
     }
 
-    public async void Close()
+    public async Task Close()
     {
         StopKeepConnect();
         await DisconnectRoom();
@@ -383,7 +383,7 @@ public class BiliLiveClient
     private void OnWebsocketMessage(byte[] data)
     {
         //var outHeader = DecodePacketHeader(data);
-        //Debug.LogFormat("len={0},dataLen={1},op={2},ver={3},", outHeader.pack_len, data.Length ,outHeader.operation, outHeader.ver, outHeader.seq_id);
+        //Debug.LogFormat("len={0},dataLen={1},op={2},ver={3},", outHeader.pack_len, data.Length, outHeader.operation, outHeader.ver, outHeader.seq_id);
 
         ParsePacketData(data);
     }

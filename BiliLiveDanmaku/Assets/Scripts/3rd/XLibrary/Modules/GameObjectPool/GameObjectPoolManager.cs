@@ -41,7 +41,7 @@ namespace XLibGame
         /// </summary>
         /// <param name="poolName">对象池名称，唯一id</param>
         /// <returns>对象池对象</returns>
-        public GameObjectPool NewPool(string poolName, GameObject prefab = null, int maxCount = 20, int defaultCount = 0)
+        public GameObjectPool NewPool(string poolName, GameObject prefab = null, int maxCount = 30, int minCount = 0,int defaultCount = 0)
         {
             if (string.IsNullOrEmpty(poolName))
             {
@@ -61,6 +61,7 @@ namespace XLibGame
                 pool.poolName = poolName;
                 pool.prefab = prefab;
                 pool.maxCount = maxCount;
+                pool.minCount = minCount;
                 pool.defaultCount = defaultCount;
                 obj.transform.SetParent(m_parentTrans);
 
@@ -160,7 +161,7 @@ namespace XLibGame
         /// 将对象存入对象池中
         /// </summary>
         /// <param name="go">对象</param>
-        public void ReleaseGameObject(GameObject go)
+        public void ReleaseGameObject(GameObject go,int stayTime = -1)
         {
             if (go == null)
                 return;

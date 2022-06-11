@@ -25,7 +25,9 @@ public class DanmakuClient : MonoBehaviour
     private void Awake()
     {
 
-        _textPool = GameObjectPoolManager.GetInstance().NewPool("TextPool", textPrefab, 80);
+        _textPool = GameObjectPoolManager.GetInstance().NewPool("TextPool", textPrefab);
+        _textPool.maxCount = 80;
+        _textPool.minCount = 10;
     }
 
     void Start()
@@ -43,9 +45,11 @@ public class DanmakuClient : MonoBehaviour
     {
         var textGo = _textPool.GetOrCreate(5f);
         var danmakuText = textGo.GetComponent<DanmakuText>();
-
+    
         danmakuText.SetText(text);
-        danmakuText.transform.SetParent(canvas.transform);
+
+        textGo.transform.localPosition = Vector3.zero;
+        textGo.transform.SetParent(canvas.transform);
 
     }
 

@@ -26,13 +26,21 @@ namespace XLibGame
         /// </summary>
         public GameObject prefab;
         /// <summary>
-        /// 如超过gc时间仍空闲,则移除池
+        /// 如超过gc时间仍空闲,则移除池(s)
         /// </summary>
-        public float stayTime = 60f;
+        public float idleTime = 180f;
+        /// <summary>
+        /// 检查时间,检查所有空闲对象(s)
+        /// </summary>
+        public float checkTime = 60f;
+        /// <summary>
+        /// 默认在池中停留时间
+        /// </summary>
+        public int stayTime = 60;
         /// <summary>
         /// 对象池中存放最大数量
         /// </summary>
-        public int maxCount = 20;
+        public int maxCount = int.MaxValue;
         /// <summary>
         /// 对象池中存放最小数量
         /// </summary>
@@ -41,6 +49,8 @@ namespace XLibGame
         /// 默认初始容量
         /// </summary>
         public int defaultCount = 0;
+
+
         /// <summary>
         /// 满池时不会生成
         /// </summary>
@@ -54,28 +64,28 @@ namespace XLibGame
         /// <summary>
         /// 队列，存放对象池中没有用到的对象，即可分配对象
         /// </summary>
-        protected LinkedList<GameObjectPoolObject> m_queue;
-        protected float m_startTick;
-        protected int m_totalCount;
+        protected LinkedList<GameObjectPoolObject> m_idleQueue;
+        protected float m_lastIdleTick;
+        protected float m_lastCheckTick;
+
         protected int m_disposeTimes;
 
         public GameObjectPool()
         {
-            m_queue = new LinkedList<GameObjectPoolObject>();
-            m_totalCount = 0;
+            m_idleQueue = new LinkedList<GameObjectPoolObject>();
         }
 
         public GameObjectPoolObject GetPoolObject(float lifeTime = 0)
         {
-            UpdateTick();
+            UpdateIdleTick();
 
             bool isAlreadyInPool = false;
             GameObjectPoolObject poolObj;
-            if (m_queue.Count > 0)
+            if (m_idleQueue.Count > 0)
             {
                 //池中有待分配对象
-                poolObj = m_queue.Last.Value;
-                m_queue.RemoveLast();
+                poolObj = m_idleQueue.Last.Value;
+                m_idleQueue.RemoveLast();
                 isAlreadyInPool = true;
             }
             else
@@ -90,10 +100,9 @@ namespace XLibGame
             }
 
             poolObj.lifeTime = lifeTime;
+            poolObj.stayTime = stayTime;
             poolObj.postTimes = m_disposeTimes;
             poolObj.ownPool = this;
-            
-            poolObj.UpdateTick();
 
             var returnObj = poolObj.gameObject;
             SetGameObjectActive(returnObj, isAlreadyInPool);
@@ -133,7 +142,7 @@ namespace XLibGame
             if (gobj == null)
                 return;
       
-            if (m_queue.Count > maxCount)
+            if (m_idleQueue.Count > maxCount)
             {
                 //当前池中object数量已满，直接销毁
                 Object.Destroy(gobj);
@@ -153,27 +162,28 @@ namespace XLibGame
             {
                 poolObj = CreatePoolObject(gobj);
             }
+
             poolObj.UpdateTick();
 
             //放入对象池，入队
-            m_queue.AddLast(poolObj);
-            m_totalCount = Mathf.Max(m_totalCount, m_queue.Count);
+            m_idleQueue.AddLast(poolObj);
 
             gobj.transform.SetParent(transform, false); //不改变Transform
             SetGameObjectDeactive(gobj);
             
-            UpdateTick();
+            UpdateIdleTick();
         }
+
 
         /// <summary>
         /// 释放
         /// </summary>
         public void Dispose()
         {
-            while(m_queue.Count > 0)
+            while(m_idleQueue.Count > 0)
             {
-                var go = m_queue.Last.Value;
-                m_queue.RemoveLast();
+                var go = m_idleQueue.Last.Value;
+                m_idleQueue.RemoveLast();
 
                 Object.Destroy(go);
             }
@@ -240,13 +250,18 @@ namespace XLibGame
             if (poolObj == null)
             {
                 poolObj = returnObj.AddComponent<GameObjectPoolObject>();
+
             }
             return poolObj;
         }
 
-        private void UpdateTick()
+        private void UpdateIdleTick()
         {
-            m_startTick = Time.realtimeSinceStartup;
+            m_lastIdleTick = Time.realtimeSinceStartup;
+        }
+        private void UpdateCheckTick()
+        {
+            m_lastCheckTick = Time.realtimeSinceStartup;
         }
 
         /// <summary>
@@ -255,7 +270,8 @@ namespace XLibGame
         private void Awake()
         {
             Init();
-            UpdateTick();
+            UpdateIdleTick();
+            UpdateCheckTick();
         }
 
         /// <summary>
@@ -274,11 +290,12 @@ namespace XLibGame
         /// </summary>
         private void OnDestroy()
         {
-            m_queue.Clear();
+            m_idleQueue.Clear();
         }
 
         private void Update()
         {
+
             UpdatePool();
             UpdatePoolObjects();
         }
@@ -338,40 +355,70 @@ namespace XLibGame
 
         private void UpdatePool()
         {
-            if (stayTime > 0f)
+            if (idleTime <= 0)
+                return;
+
+            if (m_idleQueue.Count > minCount)
             {
-                if (m_queue.Count >= m_totalCount)  //XXX:这里有可能不还回池
+                if (m_lastIdleTick + idleTime <= Time.realtimeSinceStartup)
                 {
-                    if (m_startTick + stayTime <= Time.realtimeSinceStartup)
+                    for (LinkedListNode<GameObjectPoolObject> iterNode = m_idleQueue.Last; iterNode != null;)
                     {
-                        Destroy();
+                        var nextIter = iterNode.Previous;
+
+                        var poolObj = iterNode.Value;
+                        if (poolObj != null)
+                        {
+                            var returnObj = poolObj.gameObject;
+                            Object.Destroy(returnObj);
+
+                            iterNode = iterNode.Previous;
+                            m_idleQueue.Remove(iterNode);
+                        }
+
+                        iterNode = nextIter;
+
+                        if (m_idleQueue.Count <= minCount)
+                            break;
                     }
                 }
-                else
-                {
-                    UpdateTick();
-                }
-
             }
         }
 
         private void UpdatePoolObjects()
         {
-            if (m_queue.Count <= minCount)
+            if (checkTime <= 0)
                 return;
 
-            for (LinkedListNode<GameObjectPoolObject> iterNode = m_queue.Last; iterNode != null; iterNode = iterNode.Previous)
+            if (m_lastCheckTick + checkTime <= Time.realtimeSinceStartup)
             {
-                var poolObj = iterNode.Value;
-                if (poolObj != null)
+                if (m_idleQueue.Count > 0)
                 {
-                    if (poolObj.CheckTick())
+                    for (LinkedListNode<GameObjectPoolObject> iterNode = m_idleQueue.First; iterNode != null;)
                     {
-                        var returnObj = poolObj.gameObject;
-                        Object.Destroy(returnObj);
-                        m_queue.Remove(iterNode);
+                        var nextIter = iterNode.Next;
+
+                        var poolObj = iterNode.Value;
+                        if (poolObj != null)
+                        {
+                            if (poolObj.CheckTick())
+                            {
+                                var poolObjGo = poolObj.gameObject;
+                                Object.Destroy(poolObjGo);
+
+                                m_idleQueue.Remove(iterNode);
+                            }
+                            else
+                            {
+                                //因为节点是按时间排序,因此第一个不满足的之后都是不满足
+                                break;
+                            }
+                        }
+
+                        iterNode = nextIter;
                     }
                 }
+                UpdateCheckTick();
             }
         }
     }
