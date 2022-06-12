@@ -87,9 +87,9 @@ public class DanmakuClient : MonoBehaviour
             }
 
         }
-        catch (Exception)
+        catch (Exception e)
         {
-            Debug.LogError("Parse Error");
+            Debug.LogError(string.Format("Parse Error:{0},{1}", jsonStr,e.ToString()));
         }
     }
 }
