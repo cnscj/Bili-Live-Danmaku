@@ -3,7 +3,7 @@ using System;
 using System.Collections.Generic;
 using LitJson;
 using UnityEngine;
-using XLibGame;
+using UnityEngine.Events;
 
 public class DanmakuClient : MonoBehaviour
 {
@@ -12,28 +12,33 @@ public class DanmakuClient : MonoBehaviour
     //# 22625027      #琳,
     //# 22632424      #拉,
     //# 22637261      #然,
-
+    public enum RoomWho
+    {
+        Custom = 0,
+        Ava = 22625025,
+        Bella = 22632424,
+        Carol = 22634198,
+        Diana = 22637261,
+        Eileen = 22625027,
+    }
+    public RoomWho whosRoom;
     public int roomId;
-    public GameObject textPrefab;
-    public Canvas canvas;
+    public UnityEvent<string> msgEvent = new UnityEvent<string>();
 
-
-    GameObjectPool _textPool;
     BiliLiveClient _client = new BiliLiveClient();
     Queue<string> _textQueue = new Queue<string>();
 
-    private void Awake()
-    {
-
-        _textPool = GameObjectPoolManager.GetInstance().NewPool("TextPool", textPrefab);
-        _textPool.maxCount = 80;
-        _textPool.minCount = 10;
-    }
 
     void Start()
     {
+        int finalRoom = roomId;
+        if (whosRoom != RoomWho.Custom)
+        {
+            finalRoom = (int)whosRoom;
+        }
+
         _client.onDanmakuMsg = OnDanmakuMsg;
-        _client.Start(roomId);
+        _client.Start(finalRoom);
     }
 
     private void OnDestroy()
@@ -41,27 +46,18 @@ public class DanmakuClient : MonoBehaviour
         _client.Close();
     }
 
-    private void EmitText(string text)
+    private void Send(string msg)
     {
-        var textGo = _textPool.GetOrCreate(5f);
-        var danmakuText = textGo.GetComponent<DanmakuText>();
-    
-        danmakuText.SetText(text);
-
-        textGo.transform.localPosition = Vector3.zero;
-        textGo.transform.SetParent(canvas.transform);
-
+        msgEvent.Invoke(msg);
     }
 
+    //从子线程转回主线程处理
     private void Update()
     {
-     
         while (_textQueue.Count > 0)
         {
             var text = _textQueue.Dequeue();
-            EmitText(text);
-
-            Debug.Log(text);
+            Send(text);
         }
     }
 
@@ -79,9 +75,10 @@ public class DanmakuClient : MonoBehaviour
                 var nick = info[2][1].ToString();
                 var content = info[1].ToString();
 
-                var text = string.Format("{0}:{1}", nick, content);
+                var text = string.Format("{0}", content);
                 _textQueue.Enqueue(text);
 
+                Debug.Log(string.Format("{0}:{1}", nick, content));
 
             }
             else if (cmd == BiliLiveDanmakuCmd.SEND_GIFT)

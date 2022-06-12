@@ -9,6 +9,7 @@ using System.Text;
 public class BiliLiveClient
 {
     //Unity代码不能在子线程执行,Unity代码交由程序在Update中处理
+    public Action<string> onRoomMsg;
     public Action<string> onDanmakuMsg;
 
     int _roomId;
@@ -90,6 +91,8 @@ public class BiliLiveClient
                 _roomInfo.roomOwnerUid = int.Parse(room_info["uid"].ToString());
 
                 _roomInfo.finalRoomId = (_roomInfo.shortRoomId != 0) ? _roomInfo.shortRoomId : _roomInfo.longRoomId;
+
+                onRoomMsg?.Invoke(jsonStr);
 
                 Debug.LogFormat("room_id={0},short_id={1},title={2}", _roomInfo.longRoomId, _roomInfo.shortRoomId, _roomInfo.roomTitle);
 

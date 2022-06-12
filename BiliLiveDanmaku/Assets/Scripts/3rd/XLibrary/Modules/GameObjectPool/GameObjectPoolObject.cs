@@ -24,7 +24,7 @@ namespace XLibGame
         /// <summary>
         /// 所属对象池
         /// </summary>
-        public GameObjectPool ownPool;
+        [HideInInspector]public GameObjectPool ownPool;
 
         private float m_stayTick;
         private Coroutine m_releaseCor;
