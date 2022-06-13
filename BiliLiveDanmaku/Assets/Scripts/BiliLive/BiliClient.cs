@@ -8,7 +8,6 @@ using System.Text;
 
 public class BiliLiveClient
 {
-    //Unity代码不能在子线程执行,Unity代码交由程序在Update中处理
     public Action<string> onRoomMsg;
     public Action<string> onDanmakuMsg;
 
@@ -20,6 +19,7 @@ public class BiliLiveClient
 
     WebSocket _websocket = new WebSocket();
     IntervalTimer _heartbeatTimer = new IntervalTimer(BiliLiveDef.HEART_BEAT_PACKET_SEND_INTERVAL);
+    Queue<string> _msgQueue = new Queue<string>();
 
     public BiliLiveClient(int roomId)
     {
@@ -60,6 +60,8 @@ public class BiliLiveClient
         {
             _isRunning = true;
             await ConnectRoom();
+            KeepConnect();
+            await KeepReceive();
         }
     }
 
@@ -77,8 +79,9 @@ public class BiliLiveClient
         try
         {
             var jsonStr = await HttpRequest.GetAsync(BiliLiveDef.ROOM_INIT_URL, new Dictionary<string, string> { ["room_id"] = _roomId.ToString() });
-            var jsonData = JsonMapper.ToObject(jsonStr);
+            onRoomMsg?.Invoke(jsonStr);
 
+            var jsonData = JsonMapper.ToObject(jsonStr);
             var codeStr = jsonData["code"].ToString();
             if (codeStr == "0")
             {
@@ -91,8 +94,6 @@ public class BiliLiveClient
                 _roomInfo.roomOwnerUid = int.Parse(room_info["uid"].ToString());
 
                 _roomInfo.finalRoomId = (_roomInfo.shortRoomId != 0) ? _roomInfo.shortRoomId : _roomInfo.longRoomId;
-
-                onRoomMsg?.Invoke(jsonStr);
 
                 Debug.LogFormat("room_id={0},short_id={1},title={2}", _roomInfo.longRoomId, _roomInfo.shortRoomId, _roomInfo.roomTitle);
 
@@ -153,17 +154,18 @@ public class BiliLiveClient
         return false;
     }
 
-    private async Task ConnectRoom()
+    private async Task<bool> ConnectRoom()
     {
         //建立WebSocket链接,这里应该对每个进行尝试
+        bool ret = true;
         foreach(var hostData in _hostInfo.hostList)
         {
             await ConnectWebscoket("wss", hostData.host, hostData.wssPort);
             await SendAuthPacket();
-            KeepConnect();
 
             break;
         }
+        return ret;
     }
 
     private void StopKeepConnect()
@@ -178,8 +180,20 @@ public class BiliLiveClient
 
     private void KeepConnect()
     {
-
         _heartbeatTimer.Start();
+    }
+
+    private async Task KeepReceive()
+    {
+        while (_isRunning)
+        {
+            while(_msgQueue.Count > 0)
+            {
+                var jsonStr = _msgQueue.Dequeue();
+                onDanmakuMsg?.Invoke(jsonStr);
+            }
+            await Task.Delay(100);//休眠线程
+        }
     }
 
     private async Task ConnectWebscoket(string proto,string host,int port)
@@ -249,7 +263,7 @@ public class BiliLiveClient
             if (outHeader.ver == (uint)BiliLiveCode.WS_BODY_PROTOCOL_VERSION_NORMAL) //JSON明文
             {
                 var str = Encoding.UTF8.GetString(outBody, 0, (int)outHeader.pack_len - (int)outHeader.raw_header_size);
-                onDanmakuMsg?.Invoke(str);
+                ParseDanmakuMsg(str);
             }
             else if (outHeader.ver == (uint)BiliLiveCode.WS_BODY_PROTOCOL_VERSION_DEFLATE)
             {
@@ -278,6 +292,12 @@ public class BiliLiveClient
     }
 
     //弹幕类解析
+    private void ParseDanmakuMsg(string jsonStr)
+    {
+        //这里先送到缓存区,随后交由主线程处理
+        _msgQueue.Enqueue(jsonStr);
+    }
+
     private void OnDanmakuMsg(string jsonStr)
     {
         try
@@ -304,6 +324,14 @@ public class BiliLiveClient
                 var giftName = data["giftName"].ToString();
 
                 Debug.LogFormat("[{0}{1}{2}]", uname, action, giftName);
+            }
+            else if(cmd == BiliLiveDanmakuCmd.GUARD_BUY)
+            {
+                Debug.Log(jsonData);
+            }
+            else if(cmd == BiliLiveDanmakuCmd.SUPER_CHAT_MESSAGE)
+            {
+                Debug.Log(jsonData);
             }
 
         }

@@ -31,9 +31,9 @@ namespace XLibGame
         /// <param name="type">事件类型</param>
         /// <param name="sender">发送者</param>
         /// <param name="args">事件参数</param>
-        public void Dispatch(IComparable type, object sender = null, params object[] args)
+        public void Dispatch(IComparable type, params object[] args)
         {
-            EventContext context = new EventContext(type, sender, args);
+            EventContext context = new EventContext(type, null, args);
             Dispatch(context);
         }
 

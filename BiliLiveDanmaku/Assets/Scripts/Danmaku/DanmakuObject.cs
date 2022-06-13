@@ -13,14 +13,14 @@ public class DanmakuObject : MonoBehaviour
     public float lifeTime = -1;
     public EmitAction emitAction;
 
-    //Roll²ÎÊı
+    //Rollå‚æ•°
     public Vector3 rollSpeed = Vector3.left;
 
     [HideInInspector]public DanmakuEmiter ownEmiter;
     private Coroutine _releaseCor;
     public void Emit(object args)
     {
-        SendMessage("OnDanmaku", args); //ÏòËùÓĞBehaviour·¢ËÍÊÂ¼ş,
+        SendMessage("OnDanmaku", args); //å‘æ‰€æœ‰Behaviourå‘é€äº‹ä»¶,
         TryCountDown();
     }
 

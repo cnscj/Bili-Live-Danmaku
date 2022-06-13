@@ -89,26 +89,27 @@ public class WebSocket
                 isEndOfMessage = result.EndOfMessage;
 
             } while (!isEndOfMessage);
-            _dataQueue.Enqueue(retBuff.ToArray());
+
+            var retData = retBuff.ToArray();
+            _dataQueue.Enqueue(retData);
         }
     }
 
-    private void LoopNotify()
+    private async void LoopNotify()
     {
         _dataQueue.Clear();
-        Task.Run(() =>
+        while (_isConnected)
         {
-            while (_isConnected)
+            await Task.Run(() =>
             {
                 while (_dataQueue.Count > 0)
                 {
                     var data = _dataQueue.Dequeue();
                     OnMessage(data);
                 }
-            }
-        });
+            });
+        }
     }
-
 
     //
     protected void OnOpen()

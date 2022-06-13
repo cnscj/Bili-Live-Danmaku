@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using LitJson;
 using UnityEngine;
 using UnityEngine.Events;
+using XLibGame;
 
 public class DanmakuClient : MonoBehaviour
 {
@@ -23,12 +24,10 @@ public class DanmakuClient : MonoBehaviour
     }
     public RoomWho whosRoom;
     public int roomId;
+
     public UnityEvent<string> msgEvent = new UnityEvent<string>();
 
     BiliLiveClient _client = new BiliLiveClient();
-    Queue<string> _textQueue = new Queue<string>();
-
-
     void Start()
     {
         int finalRoom = roomId;
@@ -37,6 +36,7 @@ public class DanmakuClient : MonoBehaviour
             finalRoom = (int)whosRoom;
         }
 
+        _client.onRoomMsg = OnRoomMsg;
         _client.onDanmakuMsg = OnDanmakuMsg;
         _client.Start(finalRoom);
     }
@@ -51,16 +51,30 @@ public class DanmakuClient : MonoBehaviour
         msgEvent.Invoke(msg);
     }
 
-    //从子线程转回主线程处理
-    private void Update()
+    private void OnRoomMsg(string jsonStr)
     {
-        while (_textQueue.Count > 0)
+        try
         {
-            var text = _textQueue.Dequeue();
-            Send(text);
+            var jsonData = JsonMapper.ToObject(jsonStr);
+            var codeStr = jsonData["code"].ToString();
+            if (codeStr == "0")
+            {
+                var room_info = jsonData["data"]["room_info"];
+                var room_dict = new Dictionary<string, object>()
+                {
+                    ["longRoomId"] = int.Parse(room_info["room_id"].ToString()),
+                    ["shortRoomId"] = int.Parse(room_info["short_id"].ToString()),
+                    ["roomTitle"] = room_info["title"].ToString(),
+                    ["roomOwnerUid"] = int.Parse(room_info["uid"].ToString()),
+                };
+                EventDispatcher.GetInstance().Dispatch("ROOM_INFO_UPDATE", room_dict);
+            }
+        }
+        catch (Exception e)
+        {
+            Debug.LogError(string.Format("Parse Error:\r\n{0}\r\n{1}", jsonStr, e.ToString()));
         }
     }
-
     private void OnDanmakuMsg(string jsonStr)
     {
         try
@@ -76,7 +90,7 @@ public class DanmakuClient : MonoBehaviour
                 var content = info[1].ToString();
 
                 var text = string.Format("{0}", content);
-                _textQueue.Enqueue(text);
+                Send(text);
 
                 Debug.Log(string.Format("{0}:{1}", nick, content));
 
@@ -89,7 +103,7 @@ public class DanmakuClient : MonoBehaviour
         }
         catch (Exception e)
         {
-            Debug.LogError(string.Format("Parse Error:{0},{1}", jsonStr,e.ToString()));
+            Debug.LogError(string.Format("Parse Error:\r\n{0}\r\n{1}", jsonStr, e.ToString()));
         }
     }
 }

@@ -46,7 +46,7 @@ namespace XLibGame
             this.args = args;
         }
 
-        public EventContext(IComparable type, object sender, params System.Object[] args)
+        public EventContext(IComparable type, object sender, params object[] args)
         {
             this.type = type;
             this.sender = sender;

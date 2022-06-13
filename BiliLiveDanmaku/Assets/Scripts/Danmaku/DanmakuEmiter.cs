@@ -7,11 +7,12 @@ public class DanmakuEmiter : MonoBehaviour
 {
     public GameObject tmplPrefab;
     public Transform parentNode;
-    public float frequency = 20;
+
+    public float emitInterval = 0;
+    public float emitMaxCount = 20;
 
     GameObjectPool _tmplPool;
     Queue<object> _msgQueue = new Queue<object>();
-
     float _emitTick;
 
     private void Awake()
@@ -23,9 +24,9 @@ public class DanmakuEmiter : MonoBehaviour
             _tmplPool.minCount = 10;
         }
     }
-    public void Receive(string msg)
+    public void Receive(object msg)
     {
-        if (string.IsNullOrEmpty(msg))
+        if (msg == null)
             return;
 
         _msgQueue.Enqueue(msg);
@@ -46,7 +47,7 @@ public class DanmakuEmiter : MonoBehaviour
         tmplComp.Emit(args);
 
         if (parentNode != null)
-            emitGo.transform.SetParent(parentNode, false);  //¶¯Ì¬Éú³ÉÎ»ÖÃ²»¶Ô,²»Ê¹ÊÀ½ç¿Õ¼ä
+            emitGo.transform.SetParent(parentNode, false);  //åŠ¨æ€ç”Ÿæˆä½ç½®ä¸å¯¹,ä¸ä½¿ä¸–ç•Œç©ºé—´
     }
 
     public void ReleaseObject(DanmakuObject tmpl)
@@ -62,7 +63,15 @@ public class DanmakuEmiter : MonoBehaviour
         if (_msgQueue.Count <= 0)
             return;
 
-        while (_msgQueue.Count > 0)
+        if (_emitTick + emitInterval <= Time.realtimeSinceStartup)
+            return;
+
+        //å„é¡¹å‘å°„å‚æ•°
+        var maxNum = Mathf.Min(_msgQueue.Count, emitMaxCount);
+        if (emitMaxCount < 0)
+            maxNum = _msgQueue.Count;
+
+        for (int i = 0; i < maxNum; i++)
         {
             var args = _msgQueue.Dequeue();
             EmiterObject(args);
