@@ -27,7 +27,7 @@ public class WebSocket
         LoopNotify();
     }
 
-    public async void Send(string msg)
+    public async Task Send(string msg)
     {
         if (_ws == null)
             return;

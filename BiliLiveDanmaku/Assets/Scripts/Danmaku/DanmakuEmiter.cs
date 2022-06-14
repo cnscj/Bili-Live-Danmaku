@@ -63,7 +63,7 @@ public class DanmakuEmiter : MonoBehaviour
         if (_msgQueue.Count <= 0)
             return;
 
-        if (_emitTick + emitInterval <= Time.realtimeSinceStartup)
+        if (_emitTick + emitInterval >= Time.realtimeSinceStartup)
             return;
 
         //各项发射参数

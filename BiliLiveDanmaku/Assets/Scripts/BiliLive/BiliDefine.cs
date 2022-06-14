@@ -48,11 +48,13 @@ public class BiliLiveDanmakuCmd
     public const string SUPER_CHAT_MESSAGE = "SUPER_CHAT_MESSAGE";            //原文SC留言
 
     public const string SEND_GIFT = "SEND_GIFT";                //投喂礼物
+    public const string COMBO_SEND = "COMBO_SEND";              //连续投喂
 
     public const string GUARD_BUY = "GUARD_BUY";                //上舰长
     public const string USER_TOAST_MSG = "USER_TOAST_MSG";      //续费了舰长
     public const string NOTICE_MSG = "NOTICE_MSG";              //在本房间续费了舰长
 
+    public const string WATCHED_CHANGE = "WATCHED_CHANGE";      //观看人数变化
     public const string ONLINE_RANK_COUNT = "ONLINE_RANK_COUNT"; // 高能榜数量更新
 
     public const string ROOM_REAL_TIME_MESSAGE_UPDATE = "ROOM_REAL_TIME_MESSAGE_UPDATE";    //粉丝关注变动

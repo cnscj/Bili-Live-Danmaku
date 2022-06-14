@@ -7,19 +7,10 @@ using XLibGame;
 public class RoomInfo : MonoBehaviour
 {
     public Text roomText;
-    void Start()
-    {
-        roomText ??= GetComponent<Text>();
-    }
-
-    private void OnRoomUpdate(EventContext context)
-    {
-        var dict = (Dictionary<string,object>)context.args[0];
-        roomText.text = dict["roomTitle"].ToString();
-    }
 
     private void Awake()
     {
+        roomText ??= GetComponent<Text>();
         EventDispatcher.GetInstance().AddListener("ROOM_INFO_UPDATE", OnRoomUpdate);
     }
 
@@ -28,4 +19,9 @@ public class RoomInfo : MonoBehaviour
         EventDispatcher.GetInstance().RemoveListener("ROOM_INFO_UPDATE", OnRoomUpdate);
     }
 
+    private void OnRoomUpdate(EventContext context)
+    {
+        var dict = (Dictionary<string,object>)context.args[0];
+        roomText.text = dict["roomTitle"].ToString();
+    }
 }

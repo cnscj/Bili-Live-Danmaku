@@ -34,6 +34,18 @@ public class BiliLiveClient
 
     }
 
+    public BiliLiveRoomInfo GetRoomInfo()
+    {
+        return _roomInfo;
+    }
+    public BiliLiveHostInfo GetHostInfo()
+    {
+        return _hostInfo;
+    }
+    public int GetRoomId()
+    {
+        return _roomId;
+    }
     public bool IsRunning()
     {
         return _isRunning;
@@ -139,7 +151,7 @@ public class BiliLiveClient
                     _hostInfo.hostList[i] = hostData;
                 }
 
-                Debug.LogFormat("token={0}", _hostInfo.token);
+                //Debug.LogFormat("token={0}", _hostInfo.token);
                 return true;
             }
             else
@@ -163,7 +175,7 @@ public class BiliLiveClient
             await ConnectWebscoket("wss", hostData.host, hostData.wssPort);
             await SendAuthPacket();
 
-            break;
+            if (ret) break;
         }
         return ret;
     }
@@ -305,33 +317,80 @@ public class BiliLiveClient
             var jsonData = JsonMapper.ToObject(jsonStr);
             var cmd = jsonData["cmd"].ToString();
 
-            if (cmd == BiliLiveDanmakuCmd.DANMU_MSG)
+            if (cmd == BiliLiveDanmakuCmd.DANMU_MSG)    //弹幕
             {
                 var info = jsonData["info"];
-                var uid = info[2][0].ToString();
+                var uid = int.Parse(info[2][0].ToString());
                 var nick = info[2][1].ToString();
                 var content = info[1].ToString();
 
                 Debug.LogFormat("{0}:{1}", nick, content);
 
             }
-            else if (cmd == BiliLiveDanmakuCmd.SEND_GIFT)
+            else if (cmd == BiliLiveDanmakuCmd.SEND_GIFT)   //礼物
             {
                 var data = jsonData["data"];
-                var uid = data["uid"];
+                var uid = int.Parse(data["uid"].ToString());
                 var uname = data["uname"].ToString();
                 var action = data["action"].ToString();
                 var giftName = data["giftName"].ToString();
 
                 Debug.LogFormat("[{0}{1}{2}]", uname, action, giftName);
             }
-            else if(cmd == BiliLiveDanmakuCmd.GUARD_BUY)
+            else if (cmd == BiliLiveDanmakuCmd.COMBO_SEND)  //连击礼物
             {
-                Debug.Log(jsonData);
+                var data = jsonData["data"];
+                var uid = int.Parse(data["uid"].ToString());
+                var uname = data["uname"].ToString();
+                var action = data["action"].ToString();
+                var combo_num = int.Parse(data["combo_num"].ToString());
+                var combo_total_coin = int.Parse(data["combo_total_coin"].ToString());
+                var gift_name = data["gift_name"].ToString();
+                var total_num = int.Parse(data["total_num"].ToString());
+
+                Debug.LogFormat("[{0}{1}{2}*{3}]", uname, action, gift_name, combo_num);
             }
-            else if(cmd == BiliLiveDanmakuCmd.SUPER_CHAT_MESSAGE)
+            else if(cmd == BiliLiveDanmakuCmd.GUARD_BUY)    //上船
             {
-                Debug.Log(jsonData);
+                var data = jsonData["data"];
+                var uid = int.Parse(data["uid"].ToString());
+                var username = data["username"];
+                var guard_level = int.Parse(data["guard_level"].ToString());
+                var price = int.Parse(data["price"].ToString());
+                var gift_id = int.Parse(data["gift_id"].ToString());
+                var gift_name = data["gift_name"].ToString();
+                var start_time = int.Parse(data["start_time"].ToString());
+                var end_time = int.Parse(data["end_time"].ToString());
+
+                Debug.LogFormat("[{0}购买了{1}]", username, gift_name);
+
+            }
+            else if(cmd == BiliLiveDanmakuCmd.SUPER_CHAT_MESSAGE)   //醒目留意
+            {
+                var data = jsonData["data"];
+                var user_info = data["user_info"];
+
+                var uid = int.Parse(data["uid"].ToString());
+                var uname = user_info["uname"].ToString();
+                var face = user_info["face"].ToString();
+                var face_frame = user_info["face_frame"].ToString();
+                var message = data["uname"].ToString();
+                var start_time = data["start_time"].ToString();
+                var end_time = data["end_time"].ToString();
+                var time = data["time"].ToString();
+                var price = int.Parse(data["price"].ToString());
+
+                Debug.LogFormat("[{0}的SC:{1}]", uname, message);
+
+            }
+            else if (cmd == BiliLiveDanmakuCmd.WATCHED_CHANGE)  //观看数变化
+            {
+                var data = jsonData["data"];
+                var num = int.Parse(data["num"].ToString());
+                var text_small = data["text_small"].ToString();
+                var text_large = data["text_large"].ToString();
+
+                Debug.LogFormat("[{0}]", text_large);
             }
 
         }
