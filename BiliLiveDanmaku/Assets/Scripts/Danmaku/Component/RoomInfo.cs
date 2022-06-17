@@ -21,7 +21,7 @@ public class RoomInfo : MonoBehaviour
 
     private void OnRoomUpdate(EventContext context)
     {
-        var dict = (Dictionary<string,object>)context.args[0];
-        roomText.text = dict["roomTitle"].ToString();
+        var dict = (BiliLiveRoomInfo)context.args[0];
+        roomText.text = dict.roomTitle;
     }
 }

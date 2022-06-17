@@ -36,8 +36,10 @@ public class DanmakuClient : MonoBehaviour
             finalRoom = (int)whosRoom;
         }
 
-        _client.onRoomMsg = OnRoomMsg;
-        _client.onDanmakuMsg = OnDanmakuMsg;
+        _client.listener.Clear();
+        _client.listener.onRoomInfo = OnRoomInfo;
+        _client.listener.onDataDanmuMsg = OnDataDanmuMsg;
+
         _client.Start(finalRoom);
     }
 
@@ -51,59 +53,17 @@ public class DanmakuClient : MonoBehaviour
         msgEvent.Invoke(msg);
     }
 
-    private void OnRoomMsg(string jsonStr)
+    private void OnRoomInfo(BiliLiveRoomInfo roomInfo)
     {
-        try
-        {
-            var jsonData = JsonMapper.ToObject(jsonStr);
-            var codeStr = jsonData["code"].ToString();
-            if (codeStr == "0")
-            {
-                var room_info = jsonData["data"]["room_info"];
-                var room_dict = new Dictionary<string, object>()
-                {
-                    ["longRoomId"] = int.Parse(room_info["room_id"].ToString()),
-                    ["shortRoomId"] = int.Parse(room_info["short_id"].ToString()),
-                    ["roomTitle"] = room_info["title"].ToString(),
-                    ["roomOwnerUid"] = int.Parse(room_info["uid"].ToString()),
-                };
-                EventDispatcher.GetInstance().Dispatch("ROOM_INFO_UPDATE", room_dict);
-            }
-        }
-        catch (Exception e)
-        {
-            Debug.LogError(string.Format("Parse Error:\r\n{0}\r\n{1}", jsonStr, e.ToString()));
-        }
+        EventDispatcher.GetInstance().Dispatch("ROOM_INFO_UPDATE", roomInfo);
     }
-    private void OnDanmakuMsg(string jsonStr)
+
+    private void OnDataDanmuMsg(BiliLiveDanmakuData.DanmuMsg danmuMsg)
     {
-        try
-        {
-            var jsonData = JsonMapper.ToObject(jsonStr);
-            var cmd = jsonData["cmd"].ToString();
+        var text = string.Format("{0}", danmuMsg.content);
+        Send(text);
 
-            if (cmd == BiliLiveDanmakuCmd.DANMU_MSG)
-            {
-                var info = jsonData["info"];
-                var uid = info[2][0].ToString();
-                var nick = info[2][1].ToString();
-                var content = info[1].ToString();
-
-                var text = string.Format("{0}", content);
-                Send(text);
-
-                Debug.Log(string.Format("{0}:{1}", nick, content));
-
-            }
-            else if (cmd == BiliLiveDanmakuCmd.SEND_GIFT)
-            {
-
-            }
-
-        }
-        catch (Exception e)
-        {
-            Debug.LogError(string.Format("Parse Error:\r\n{0}\r\n{1}", jsonStr, e.ToString()));
-        }
+        Debug.Log(string.Format("{0}:{1}", danmuMsg.nick, danmuMsg.content));
     }
+   
 }
