@@ -98,6 +98,7 @@ public static class BiliLiveDanmakuData
     {
         public int uid;
         public string nick;
+        public string color;
         public string content;
     }
 
@@ -142,6 +143,13 @@ public static class BiliLiveDanmakuData
         public int end_time;
         public int time;
         public int price;
+        public string message_font_color;
+        public string background_price_color;
+        public string background_bottom_color;
+        public string background_color;
+        public string background_color_end;
+        public string background_color_start;
+
     }
 
     public class WatchedChange : Raw
