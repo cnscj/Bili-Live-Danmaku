@@ -1,5 +1,6 @@
 using System;
-using LitJson;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using UnityEngine;
 
 public class BiliLiveListener
@@ -53,7 +54,7 @@ public class BiliLiveListener
         BiliLiveDanmakuData.Raw outData = null;
         try
         {
-            var jsonData = JsonMapper.ToObject(jsonStr);
+            var jsonData = (JObject)JsonConvert.DeserializeObject(jsonStr);
             var cmd = jsonData["cmd"].ToString();
 
             if (cmd == BiliLiveDanmakuCmd.DANMU_MSG)    //弹幕
@@ -61,7 +62,7 @@ public class BiliLiveListener
                 var info = jsonData["info"];
                 outData = new BiliLiveDanmakuData.DanmuMsg
                 {
-                    uid = int.Parse(info[2][0].ToString()),
+                    uid = long.Parse(info[2][0].ToString()),
                     nick = info[2][1].ToString(),
                     color = "#" + int.Parse(info[0][3].ToString()).ToString("x6"),    //十进制转十六进制字符串
                     content = info[1].ToString()
@@ -72,7 +73,7 @@ public class BiliLiveListener
                 var data = jsonData["data"];
                 outData = new BiliLiveDanmakuData.SendGift
                 {
-                    uid = int.Parse(data["uid"].ToString()),
+                    uid = long.Parse(data["uid"].ToString()),
                     uname = data["uname"].ToString(),
                     action = data["action"].ToString(),
                     giftName = data["giftName"].ToString(),
@@ -83,7 +84,7 @@ public class BiliLiveListener
                 var data = jsonData["data"];
                 outData = new BiliLiveDanmakuData.ComboSend
                 {
-                    uid = int.Parse(data["uid"].ToString()),
+                    uid = long.Parse(data["uid"].ToString()),
                     uname = data["uname"].ToString(),
                     action = data["action"].ToString(),
                     combo_num = int.Parse(data["combo_num"].ToString()),
@@ -98,7 +99,7 @@ public class BiliLiveListener
                 var data = jsonData["data"];
                 outData = new BiliLiveDanmakuData.GuardBuy
                 {
-                    uid = int.Parse(data["uid"].ToString()),
+                    uid = long.Parse(data["uid"].ToString()),
                     username = data["username"].ToString(),
                     guard_level = int.Parse(data["guard_level"].ToString()),
                     price = int.Parse(data["price"].ToString()),
@@ -115,7 +116,7 @@ public class BiliLiveListener
 
                 outData = new BiliLiveDanmakuData.SuperChatMessage
                 {
-                    uid = int.Parse(data["uid"].ToString()),
+                    uid = long.Parse(data["uid"].ToString()),
                     uname = user_info["uname"].ToString(),
                     face = user_info["face"].ToString(),
                     face_frame = user_info["face_frame"].ToString(),
